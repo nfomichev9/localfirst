@@ -172,6 +172,12 @@ async def test_disconnect_cancels_upstream_and_releases_lock(tmp_path):
         assert app.state.busy is False
         message = app.state.storage.conversation(cid)['messages'][-1]
         assert message['status'] == 'stopped' and message['content'] == 'Hello '
+        telemetry = message['telemetry']
+        assert telemetry['status'] == 'cancelled'
+        assert telemetry['ttft_ms'] >= 0
+        assert telemetry['output_tokens'] is None
+        assert telemetry['external_api_cost'] == 0
+        assert app.state.telemetry.analytics()['overview']['cancellation_rate'] == 100
         assert not any(b'"done"' in part for part in response_packets)
 
 
@@ -245,5 +251,38 @@ async def test_no_models_is_valid_discovery():
     adapter = OllamaAdapter(httpx.MockTransport(lambda request: httpx.Response(200, json={'models':[]})))
     try:
         assert await adapter.models() == []
+    finally:
+        await adapter.close()
+
+
+def test_gemma_preferred_only_when_installed_and_explicit_selection_preserved(tmp_path):
+    with client_for(tmp_path) as (client, fake):
+        assert client.get('/api/models').json()['default'] == 'llama3.2:3b'
+        async def installed():
+            return ['llama3.2:3b', 'gemma4:e2b']
+        fake.models = installed
+        models = client.get('/api/models').json()
+        assert models['default'] == 'gemma4:e2b'
+        assert models['labels']['gemma4:e2b'] == 'Lightweight · Gemma 4 E2B'
+        cid = create(client)
+        result = packets(send(client, cid))
+        assert fake.requests[-1][0] == 'gemma4:e2b'
+        assert result[-1]['telemetry']['model'] == 'gemma4:e2b'
+        send(client, cid, model='llama3.2:3b')
+        assert fake.requests[-1][0] == 'llama3.2:3b'
+        assert send(client, cid, model='gemma4:missing').status_code == 400
+
+
+@pytest.mark.parametrize('model,thinking', [('gemma4:e2b', False), ('llama3.2:3b', None)])
+async def test_gemma_lightweight_thinking_policy(model, thinking):
+    def handler(request):
+        payload = json.loads(request.content)
+        assert payload.get('think') is thinking
+        assert payload['model'] == model
+        return httpx.Response(200, content='{"message":{"content":"Answer"},"done":true}\n')
+    adapter = OllamaAdapter(httpx.MockTransport(handler))
+    try:
+        values = [packet async for packet in adapter.stream(model, [])]
+        assert values[-1]['done'] is True
     finally:
         await adapter.close()

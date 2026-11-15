@@ -105,3 +105,73 @@ After each slice, keep the app runnable and record what changed, what was tested
 - Ollama model listing: https://docs.ollama.com/api/tags
 - Ollama streaming format: https://docs.ollama.com/api/streaming
 - FastAPI streaming responses: https://fastapi.tiangolo.com/advanced/custom-response/
+
+## 10. Deferred final milestone — Local chat organization
+
+User-requested future feature, intentionally scheduled at the very end of the current
+roadmap. This does not authorize implementing an agent, scheduling jobs, or reorganizing
+existing chats now.
+
+During local-agent setup in Settings, offer **Organize my chats** for the existing
+conversation library (for example, an initial collection of about 20 chats). Use the
+selected local model to suggest a small, useful folder structure, assign chats by topic
+or project, and build a local index so the user can find earlier discussions.
+
+Proposed initial behavior:
+- Scope to chats already stored in LocalFirst; folders are in-app organization, not
+  moves of database files or arbitrary materials on the user's filesystem.
+- Preview suggested folders, assignments, and short index descriptions before applying.
+  Allow correcting names/assignments, leaving uncertain chats unsorted, and undoing a batch.
+- Preserve conversation IDs, original messages, telemetry, and the ability to continue
+  each chat. Generated index descriptions are derived data, not edits to source chats.
+- Let users rename/move chats themselves and retain those choices on subsequent runs.
+- Support an initial organization pass and a user-triggered rerun for new chats.
+  Automatic end-of-session or scheduled organization is a separate future decision.
+- Keep model processing and the index local. Handle long chats in bounded pieces;
+  avoid inferring organization from titles alone when content is available. Treat chat
+  contents as material to classify, not instructions for the organizer to execute.
+- Prefer a small folder-management and search/index feature over a general-purpose
+  autonomous agent. Measure processing time and usefulness before expanding scope.
+
+Acceptance for that future milestone: preview/apply/undo work on an existing library;
+folder membership and indexing survive restart; search opens the original chat;
+manual choices survive reruns; cancellation does not leave half-applied organization;
+no chats are deleted, source messages rewritten, or content sent to external services.
+
+## 11. Next milestone — Evaluation Lab and context preparation
+
+Agreed product direction: the local model should help prepare a complete request,
+not merely attempt a cheaper answer. Validate that role in a separate Evaluation
+Lab within LocalFirst before implementing automatic routing.
+
+The Lab should let the user supply a task, relevant context, and explicit success
+criteria before generation. Show the local answer, optional authorized frontier
+answer, evaluator verdict with rationale/evidence, and cost/latency. Retain human
+assessment separately from model assessment. A frontier judge's approval is evidence,
+not ground truth; judging an answer does not establish that the judge can independently
+solve the task. Establish frontier capability with an actual comparable run.
+
+Use task-appropriate checks: verified reference results for deterministic tasks,
+executable tests for code, factual coverage/unsupported-claim checks for summaries,
+and explicit rubrics for writing/planning. Distinguish successful, failed,
+insufficient-context, and uncertain evaluations; do not equate response completion
+or helpfulness feedback with successful task completion.
+
+Context preparation should identify essential missing information, ask focused
+clarifying questions, and assemble the user's objective, relevant context,
+constraints, and success criteria. Preserve uncertainty and expose assumptions;
+never invent missing context or quietly change the user's intent. Access only
+sources the user has authorized. Avoid unnecessary clarification rounds.
+
+First experiment: compare an original prompt with a locally prepared version on
+comparable tasks. Record any user-supplied clarification as added information,
+so its effect is distinguishable from prompt rewriting alone. Compare task success,
+quality, total latency, clarification burden, retries, and total external API cost,
+including preparation/evaluation costs when applicable. Run equivalent inputs
+against local and frontier models when evaluating provider capability.
+
+Implementation remains a future task. No frontier provider, credentials, paid calls,
+external judging, or automatic routing is authorized by this design agreement.
+Start with local trials and user-defined rubrics; any future cloud trials require
+explicit opt-in and spending controls. The chat organization feature remains deferred
+to the final milestone.

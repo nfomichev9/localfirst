@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-let current = null, busy = false, controller = null, online = false;
+let current = null, busy = false, controller = null, online = false, stopActiveStream = null;
 async function api(path, options = {}) {
   const response = await fetch(path, { ...options, headers: {'Content-Type': 'application/json', ...options.headers} });
   if (!response.ok) {
@@ -22,7 +22,7 @@ async function refreshModels() {
     const previous = $('model').value;
     const data = await (await api('/api/models')).json();
     $('model').replaceChildren();
-    data.models.forEach(name => { const option = document.createElement('option'); option.value = name; option.textContent = name; $('model').append(option); });
+    data.models.forEach(name => { const option = document.createElement('option'); option.value = name; option.textContent = data.labels?.[name] || name; option.title = name; $('model').append(option); });
     online = data.models.length > 0;
     if (data.models.includes(previous)) $('model').value = previous;
     else if (data.models.includes(data.default)) $('model').value = data.default;
@@ -48,8 +48,41 @@ async function refreshList() {
     $('conversations').append(button);
   });
 }
-function metricText(m) {
-  return `${m.model || 'Local model'} · Locally generated · ${m.latency_ms == null ? '—' : (m.latency_ms / 1000).toFixed(2) + 's'} · ${m.prompt_tokens ?? '—'} input / ${m.output_tokens ?? '—'} output tokens · $0 external API spend`;
+const seconds = value => value == null ? '—' : `${(value / 1000).toFixed(2)}s`;
+const number = value => value == null ? '—' : value.toLocaleString(undefined, {maximumFractionDigits:1});
+function metricsBar(element, record) {
+  element.replaceChildren();
+  const t = record.telemetry;
+  if (!t) {
+    element.textContent = record.status === 'streaming' ? `${record.model || 'Local model'} · Generating…` : `${record.model || 'Local model'} · Detailed telemetry unavailable for this response`;
+    return;
+  }
+  const details = document.createElement('details');
+  const summary = document.createElement('summary');
+  const total = t.input_tokens != null && t.output_tokens != null ? t.input_tokens + t.output_tokens : null;
+  const cost = t.external_api_cost == null ? 'Cost unavailable' : `$${t.external_api_cost.toFixed(4)} API`;
+  summary.textContent = `${t.model} · ${t.execution_location === 'local' ? 'Local' : 'Cloud'} · ${seconds(t.latency_ms)} · ${number(total)} tokens · ${cost} · ${t.status}`;
+  const more = document.createElement('div');
+  more.textContent = `Input: ${number(t.input_tokens)} · Output: ${number(t.output_tokens)} · Generation: ${number(t.tokens_per_second)} tok/s · First token: ${seconds(t.ttft_ms)} · Provider: ${t.provider}`;
+  details.append(summary, more); element.append(details);
+  if (t.status === 'success') {
+    const feedback = document.createElement('div'); feedback.className = 'feedback';
+    const label = document.createElement('span'); label.textContent = 'Was this useful?'; feedback.append(label);
+    [[1,'👍','Helpful'],[-1,'👎','Not helpful']].forEach(([value, icon, title]) => {
+      const button = document.createElement('button'); button.textContent = icon;
+      button.title = title; button.setAttribute('aria-label', title); button.setAttribute('aria-pressed', String(t.feedback === value));
+      button.onclick = async () => {
+        button.disabled = true;
+        try {
+          const next = t.feedback === value ? null : value;
+          await api(`/api/inference/${t.request_id}/feedback`, {method:'PUT', body:JSON.stringify({value:next})});
+          t.feedback = next; metricsBar(element, record);
+        } catch (e) { notice(e.message); button.disabled = false; }
+      };
+      feedback.append(button);
+    });
+    element.append(feedback);
+  }
 }
 function addMessage(m) {
   $('welcome').hidden = true;
@@ -59,23 +92,46 @@ function addMessage(m) {
   const metrics = document.createElement('div'); metrics.className = 'metrics';
   const error = document.createElement('div'); error.className = 'message-error';
   article.append(heading, content, metrics, error); $('messages').append(article);
+  let state = {}, entered = false;
   function update(record) {
-    if (record.content != null) content.textContent = record.content;
+    const previous = state;
+    state = {...state, ...record};
+    if (state.content != null && state.content !== previous.content) {
+      if (m.role === 'assistant') {
+        renderMarkdown(content, state.content);
+        if (m.status === 'streaming' && state.content && !entered) {
+          entered = true; article.classList.add('response-enter');
+        }
+      } else content.textContent = state.content;
+    }
     if (m.role === 'assistant') {
-      metrics.textContent = metricText(record);
-      error.textContent = record.error || (record.status === 'stopped' ? 'Stopped — incomplete response.' : record.status === 'streaming' ? 'Generating…' : record.status === 'error' ? 'Response failed.' : '');
+      if (state.telemetry !== previous.telemetry || state.status !== previous.status || state.model !== previous.model) metricsBar(metrics, state);
+      const errorText = state.error || (state.status === 'stopped' ? 'Stopped — incomplete response.' : state.status === 'streaming' ? 'Generating…' : state.status === 'error' ? 'Response failed.' : '');
+      if (error.textContent !== errorText) error.textContent = errorText;
     }
   }
   update(m); return {content, update};
 }
-function scrollDown() { $('thread').scrollTop = $('thread').scrollHeight; }
+let followOutput = true;
+$('thread').addEventListener('scroll', () => {
+  const thread = $('thread');
+  followOutput = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 64;
+}, {passive:true});
+function selectingThreadText() {
+  const selection = window.getSelection();
+  return selection && !selection.isCollapsed && ($('thread').contains(selection.anchorNode) || $('thread').contains(selection.focusNode));
+}
+function scrollDown(force = false) {
+  if (force) followOutput = true;
+  if (force || (followOutput && !selectingThreadText())) $('thread').scrollTop = $('thread').scrollHeight;
+}
 async function openConversation(id) {
   if (busy) return;
   const c = await (await api(`/api/conversations/${id}`)).json();
   current = id; $('messages').replaceChildren(); $('welcome').hidden = !!c.messages.length;
   $('conversation-title').textContent = c.title; c.messages.forEach(addMessage);
   document.body.classList.remove('sidebar-open'); $('menu').setAttribute('aria-expanded', 'false');
-  await refreshList(); scrollDown(); notice();
+  await refreshList(); scrollDown(true); notice();
 }
 function newChat() {
   if (busy) return;
@@ -89,22 +145,29 @@ $('composer').onsubmit = async event => {
   const text = $('prompt').value.trim(); if (!text || busy || !online) return;
   busy = true; controller = new AbortController(); controls(); notice();
   const selectedModel = $('model').value;
-  let message = null, accumulated = '', finished = false;
+  let message = null, streaming = null, accumulated = '', finished = false, cancelled = false;
+  stopActiveStream = () => {
+    cancelled = true;
+    streaming?.close();
+    controller.abort();
+  };
   try {
     if (!current) current = (await (await api('/api/conversations', {method: 'POST', signal: controller.signal})).json()).id;
     addMessage({role:'user', content:text});
     message = addMessage({role:'assistant', content:'', model:selectedModel, status:'streaming'});
+    streaming = createStreamBuffer(raw => { message.update({content:raw}); scrollDown(); });
     $('prompt').value = ''; $('prompt').style.height = '';
-    $('generation-status').textContent = 'Generating on your Mac…'; scrollDown();
+    $('generation-status').textContent = 'Generating on your Mac…'; scrollDown(true);
     const response = await api(`/api/conversations/${current}/chat`, {method:'POST', signal:controller.signal, body:JSON.stringify({content:text, model:selectedModel})});
     const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';
     function consume(line) {
-      if (!line.trim()) return;
+      if (cancelled || finished || !line.trim()) return;
       const packet = JSON.parse(line);
+      if (packet.type === 'start') message.id = packet.message_id;
       if (packet.type === 'start' && packet.omitted_messages) notice(`Context includes the latest 12 saved messages plus your prompt. ${packet.omitted_messages} older messages are saved but omitted from this request.`);
-      if (packet.type === 'delta') { accumulated += packet.content; message.content.textContent = accumulated; scrollDown(); }
+      if (packet.type === 'delta') { accumulated += packet.content; streaming.set(accumulated); }
       if (packet.type === 'error') throw new Error(packet.message);
-      if (packet.type === 'done') { finished = true; message.update({...packet, status:'complete'}); }
+      if (packet.type === 'done') { streaming.close(); finished = true; message.update({...packet, status:'complete'}); scrollDown(); }
     }
     while (true) {
       const {done, value} = await reader.read();
@@ -114,21 +177,28 @@ $('composer').onsubmit = async event => {
     }
     if (!finished) throw new Error('Connection ended before the response completed.');
   } catch (error) {
+    streaming?.close();
     controller.abort();
     const stopped = error.name === 'AbortError';
     const text = stopped ? 'Stopped — incomplete response.' : error.message;
     if (message) message.update({model:selectedModel, status:stopped?'stopped':'error', error:text});
     if (!stopped) notice(text);
   } finally {
-    busy = false; controller = null; $('generation-status').textContent = ''; controls(); $('prompt').focus();
+    streaming?.close(); stopActiveStream = null;
+    busy = false; controller = null; $('generation-status').textContent = ''; controls();
+    if (!selectingThreadText()) $('prompt').focus();
     if (current) {
       // Reload only the title/list here: preserve streamed output until the next open.
-      try { const c = await (await api(`/api/conversations/${current}`)).json(); $('conversation-title').textContent = c.title; await refreshList(); }
+      try { const c = await (await api(`/api/conversations/${current}`)).json(); $('conversation-title').textContent = c.title;
+        const saved = c.messages.find(m => m.id === message?.id);
+        if (saved && !cancelled) message.update(saved);
+        else if (saved?.telemetry && saved.telemetry.status !== 'running') message.update({telemetry:saved.telemetry});
+        await refreshList(); }
       catch (error) { notice(error.message); }
     }
   }
 };
-$('stop').onclick = () => { if (controller) { $('generation-status').textContent = 'Stopping…'; controller.abort(); } };
+$('stop').onclick = () => { if (controller) { $('generation-status').textContent = 'Stopping…'; stopActiveStream(); } };
 $('new-chat').onclick = newChat;
 $('refresh-models').onclick = refreshModels;
 $('menu').onclick = () => { const open = document.body.classList.toggle('sidebar-open'); $('menu').setAttribute('aria-expanded', String(open)); };

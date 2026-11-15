@@ -3,6 +3,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
+from .telemetry import initialize
 
 
 class Storage:
@@ -24,6 +25,7 @@ class Storage:
                     output_tokens INTEGER, error TEXT,
                     created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
             ''')
+            initialize(db)
             # A previous process may have ended mid-response.
             db.execute("UPDATE messages SET status='stopped', error='Application stopped during generation.' WHERE status='streaming'")
 
@@ -55,6 +57,9 @@ class Storage:
                 return None
             result = dict(row)
             result['messages'] = [dict(r) for r in db.execute('SELECT * FROM messages WHERE conversation_id=? ORDER BY id', (cid,))]
+            for message in result['messages']:
+                attempt = db.execute('SELECT * FROM inference_attempts WHERE message_id=?', (message['id'],)).fetchone()
+                message['telemetry'] = dict(attempt) if attempt else None
             return result
 
     def add(self, cid, role, content, model=None, status='complete'):

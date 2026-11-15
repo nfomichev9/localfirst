@@ -1,6 +1,17 @@
 """The local inference boundary. Never downloads models or follows redirects."""
 import json
+import math
 import httpx
+
+
+def count_metric(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def duration_metric(value):
+    if isinstance(value, (float, int)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0:
+        return value / 1_000_000  # Ollama nanoseconds -> milliseconds
+    return None
 
 
 class OllamaError(Exception):
@@ -39,11 +50,15 @@ class OllamaAdapter:
             raise OllamaError('Ollama returned an invalid model list.') from exc
 
     async def stream(self, model, messages):
+        payload = {
+            'model': model, 'messages': messages, 'stream': True,
+            'options': {'num_ctx': 4096, 'num_predict': 2048},
+        }
+        # Lightweight Gemma chat prioritizes an immediate answer over a thinking trace.
+        if model.split(':', 1)[0] == 'gemma4':
+            payload['think'] = False
         try:
-            async with self.client.stream('POST', '/api/chat', json={
-                'model': model, 'messages': messages, 'stream': True,
-                'options': {'num_ctx': 4096, 'num_predict': 2048},
-            }) as response:
+            async with self.client.stream('POST', '/api/chat', json=payload) as response:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
                     if not line.strip():

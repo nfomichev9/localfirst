@@ -2,6 +2,7 @@
 Run: .venv/bin/python tests/smoke_local.py
 Starts a temporary loopback server, exercises streaming/restart/stop, then exits.
 """
+import argparse
 import json
 import socket
 import subprocess
@@ -16,6 +17,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--model', help='Installed Ollama model; defaults to the app preference')
+    args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='localfirst-smoke-') as directory:
         path = Path(directory) / 'smoke.sqlite3'
         with socket.socket() as sock:
@@ -54,14 +58,16 @@ def main():
             with httpx.Client(base_url=base, timeout=180, trust_env=False) as client:
                 assert client.get('/').status_code == 200
                 assert client.get('/static/styles.css').status_code == 200
-                models = client.get('/api/models').json()['models']
-                assert 'llama3.2:3b' in models
+                catalog = client.get('/api/models').json()
+                model = args.model or catalog['default']
+                assert model in catalog['models'], 'Select an installed model with --model'
+                print('Testing installed model:', model)
                 cid = client.post('/api/conversations').json()['id']
                 route = f'/api/conversations/{cid}/chat'
                 def chat(prompt):
                     events, arrival = [], []
                     started = time.perf_counter()
-                    with client.stream('POST', route, json={'content':prompt,'model':'llama3.2:3b'}) as response:
+                    with client.stream('POST', route, json={'content':prompt,'model':model}) as response:
                         assert response.status_code == 200
                         for line in response.iter_lines():
                             if line:
@@ -70,6 +76,11 @@ def main():
                                 if event['type'] == 'delta':
                                     arrival.append(time.perf_counter()-started)
                     assert events[-1]['type'] == 'done', events[-1]
+                    telemetry = events[-1]['telemetry']
+                    assert telemetry['status'] == 'success'
+                    assert telemetry['external_api_cost'] == 0
+                    assert telemetry['tokens_per_second'] is not None
+                    assert telemetry['ttft_ms'] >= 0
                     result = ''.join(e['content'] for e in events if e['type']=='delta')
                     print(f"Real chat: {len(arrival)} deltas, first={arrival[0]:.2f}s, total={events[-1]['latency_ms']/1000:.2f}s, output_tokens={events[-1]['output_tokens']}")
                     return result
@@ -83,7 +94,7 @@ def main():
                 after = client.get(f'/api/conversations/{cid}').json()
                 assert after == before
                 print('Follow-up context and server-restart persistence: PASS')
-                with client.stream('POST', route, json={'content':'Write a very long essay about the history of mathematics.'}) as response:
+                with client.stream('POST', route, json={'content':'Write a very long essay about the history of mathematics.', 'model':model}) as response:
                     for line in response.iter_lines():
                         if line and json.loads(line)['type'] == 'delta':
                             break
@@ -93,6 +104,11 @@ def main():
                         break
                     time.sleep(.1)
                 assert saved['status'] == 'stopped', saved['status']
+                assert saved['telemetry']['status'] == 'cancelled'
+                overview = client.get('/api/usage?days=0').json()['overview']
+                assert overview['requests'] == 3
+                assert overview['local_percentage'] == 100
+                assert overview['external_api_cost'] == 0
                 print('Real HTTP disconnect stops generation and saves incomplete status: PASS')
                 assert client.get('/api/health').status_code == 200
         finally:
