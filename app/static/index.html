@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><title>LocalFirst — Your space to think</title><link rel="stylesheet" href="/static/styles.css"><script src="/static/app.js" defer></script></head>
+<body>
+<aside id="sidebar">
+  <a class="brand" href="/" aria-label="LocalFirst home"><span class="logo">L<span>↗</span></span> LocalFirst <small>01</small></a>
+  <button id="new-chat" class="new-chat">＋ <span>New conversation</span><kbd>↵</kbd></button>
+  <div class="section-label">YOUR CONVERSATIONS</div>
+  <nav id="conversations" aria-label="Saved conversations"></nav>
+  <div class="sidebar-bottom"><span class="green-dot"></span><div>On your machine<small>Your conversations stay here.</small></div><span class="lock">⌑</span></div>
+</aside>
+<main>
+  <header><div class="header-left"><button id="menu" aria-label="Toggle conversations" aria-expanded="false">☰</button><span class="workspace-label">Workspace</span><span class="slash">/</span><span id="conversation-title">New conversation</span></div><span class="local-badge"><span class="green-dot"></span> LOCAL INFERENCE</span></header>
+  <div class="toolbar"><div><span id="connection-dot" class="green-dot offline"></span><select id="model" aria-label="Select installed model"><option>Connecting…</option></select><button id="refresh-models" title="Refresh installed models" aria-label="Refresh installed models">↻</button></div><span id="connection">Connecting to Ollama</span></div>
+  <div id="notice" role="status" hidden></div>
+  <section id="thread" aria-label="Conversation" aria-busy="false">
+    <div id="welcome"><div class="eyebrow">A LITTLE MORE PRIVATE. A LOT MORE YOURS.</div><h1>Your space to think<span>.</span></h1><p>Ask a question. Untangle an idea. Start something new.<br>Powered by a model running right on your Mac.</p><div class="suggestions"><button data-prompt="Explain a complex idea in simple terms."><span>↗</span> Make sense of something<small>Find clarity in the complicated</small></button><button data-prompt="Help me brainstorm ideas for a small weekend project."><span>✳</span> Explore an idea<small>Give your curiosity some room</small></button><button data-prompt="Help me make a practical plan for a productive day."><span>≡</span> Make a plan<small>Turn a thought into a next step</small></button></div><div class="welcome-note"><span class="green-dot"></span> Local model. Local history. Your conversation.</div></div>
+    <div id="messages"></div>
+  </section>
+  <footer><div id="generation-status" role="status"></div><form id="composer"><label class="sr-only" for="prompt">Message LocalFirst</label><textarea id="prompt" rows="1" placeholder="Message LocalFirst…" maxlength="16000"></textarea><div class="composer-bottom"><span><span class="green-dot"></span> Only on your device</span><button id="send" type="submit" aria-label="Send message">↑</button><button id="stop" type="button" hidden>■ Stop</button></div></form><p class="footnote">$0 external API spend <span>·</span> Local compute uses your device’s memory and electricity.</p></footer>
+</main>
+</body></html>
