@@ -1,23 +1,83 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><title>LocalFirst — Your space to think</title><link rel="stylesheet" href="/static/styles.css"><script src="/static/vendor/marked.min.js" defer></script><script src="/static/vendor/purify.min.js" defer></script><script src="/static/vendor/highlight.min.js" defer></script><script src="/static/markdown.js" defer></script><script src="/static/streaming.js" defer></script><script src="/static/app.js" defer></script></head>
-<body>
-<aside id="sidebar">
-  <a class="brand" href="/" aria-label="LocalFirst home"><span class="logo">L<span>↗</span></span> LocalFirst <small>01</small></a>
-  <button id="new-chat" class="new-chat">＋ <span>New conversation</span><kbd>↵</kbd></button>
-  <a class="usage-link" href="/usage">◷ Usage &amp; analytics ↗</a>
-  <div class="section-label">YOUR CONVERSATIONS</div>
-  <nav id="conversations" aria-label="Saved conversations"></nav>
-  <div class="sidebar-bottom"><span class="green-dot"></span><div>On your machine<small>Your conversations stay here.</small></div><span class="lock">⌑</span></div>
-</aside>
-<main>
-  <header><div class="header-left"><button id="menu" aria-label="Toggle conversations" aria-expanded="false">☰</button><span class="workspace-label">Workspace</span><span class="slash">/</span><span id="conversation-title">New conversation</span></div><span class="local-badge"><span class="green-dot"></span> LOCAL INFERENCE</span></header>
-  <div class="toolbar"><div><span id="connection-dot" class="green-dot offline"></span><select id="model" aria-label="Select installed model"><option>Connecting…</option></select><button id="refresh-models" title="Refresh installed models" aria-label="Refresh installed models">↻</button></div><span id="connection">Connecting to Ollama</span></div>
-  <div id="notice" role="status" hidden></div>
-  <section id="thread" aria-label="Conversation" aria-busy="false">
-    <div id="welcome"><div class="eyebrow">A LITTLE MORE PRIVATE. A LOT MORE YOURS.</div><h1>Your space to think<span>.</span></h1><p>Ask a question. Untangle an idea. Start something new.<br>Powered by a model running right on your Mac.</p><div class="suggestions"><button data-prompt="Explain a complex idea in simple terms."><span>↗</span> Make sense of something<small>Find clarity in the complicated</small></button><button data-prompt="Help me brainstorm ideas for a small weekend project."><span>✳</span> Explore an idea<small>Give your curiosity some room</small></button><button data-prompt="Help me make a practical plan for a productive day."><span>≡</span> Make a plan<small>Turn a thought into a next step</small></button></div><div class="welcome-note"><span class="green-dot"></span> Local model. Local history. Your conversation.</div></div>
-    <div id="messages"></div>
-  </section>
-  <footer><div id="generation-status" role="status"></div><form id="composer"><label class="sr-only" for="prompt">Message LocalFirst</label><textarea id="prompt" rows="1" placeholder="Message LocalFirst…" maxlength="16000"></textarea><div class="composer-bottom"><span><span class="green-dot"></span> Only on your device</span><button id="send" type="submit" aria-label="Send message">↑</button><button id="stop" type="button" hidden>■ Stop</button></div></form><p class="footnote">$0 external API spend <span>·</span> Local compute uses your device’s memory and electricity.</p></footer>
-</main>
-</body></html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>LocalFirst — Chat</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/chat.css?v=4">
+  <script src="/static/vendor/marked.min.js" defer></script>
+  <script src="/static/vendor/purify.min.js" defer></script>
+  <script src="/static/vendor/highlight.min.js" defer></script>
+  <script src="/static/markdown.js?v=4" defer></script>
+  <script src="/static/streaming.js" defer></script>
+  <script src="/static/app.js?v=4" defer></script>
+</head>
+<body class="chat-page">
+  <aside id="sidebar">
+    <a class="brand" href="/" aria-label="LocalFirst home"><span class="logo" aria-hidden="true">L</span> LocalFirst</a>
+    <button id="new-chat" class="new-chat"><span aria-hidden="true">＋</span> New chat</button>
+    <div class="section-label">Conversations</div>
+    <nav id="conversations" aria-label="Saved conversations"></nav>
+    <a class="usage-link" href="/usage">Usage &amp; analytics</a>
+    <a class="usage-link" href="/settings?v=3">Settings</a>
+  </aside>
+  <main>
+    <header>
+      <div class="header-left">
+        <button id="menu" aria-label="Toggle conversations" aria-expanded="false" aria-controls="sidebar">☰</button>
+        <span id="conversation-title">New conversation</span>
+      </div>
+      <div class="chat-connection"><span id="connection-dot" class="green-dot offline" aria-hidden="true"></span><span id="connection" role="status">Loading routing settings…</span></div>
+    </header>
+    <div id="notice" role="status" hidden></div>
+    <section id="thread" aria-label="Conversation" aria-busy="false">
+      <div id="welcome"><h1>New conversation</h1><p>Send a message to start chatting.</p></div>
+      <div id="messages"></div>
+    </section>
+    <footer>
+      <div id="generation-status" role="status"></div>
+      <form id="composer">
+        <div id="pdf-attachment" hidden aria-live="polite">
+          <span id="pdf-name"></span>
+          <button id="remove-pdf" type="button" aria-label="Remove PDF attachment">×</button>
+          <small id="pdf-note"></small>
+        </div>
+        <label class="sr-only" for="prompt">Message LocalFirst</label>
+        <textarea id="prompt" rows="1" placeholder="Type a message…" maxlength="16000"></textarea>
+        <p id="web-search-note" hidden>Search uses this message as the query. Answers use search excerpts and are generated locally.</p>
+        <div class="composer-bottom">
+          <span id="routing-mode">Always local</span>
+          <div class="composer-tools">
+            <button id="attach-pdf" type="button" title="Attach file" aria-label="Attach file">+</button>
+            <input id="pdf-file" type="file" accept=".pdf,application/pdf" hidden>
+            <button id="search-web" type="button" aria-pressed="false" aria-describedby="web-search-note" title="Search the web with this message">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>
+              Search
+            </button>
+          </div>
+          <div class="composer-model">
+            <label id="model-label" for="model">Local model</label>
+            <select id="model" aria-label="Select installed model"><option>Connecting…</option></select>
+            <button id="refresh-models" type="button" title="Refresh installed models" aria-label="Refresh installed models">↻</button>
+          </div>
+          <button id="send" type="submit" aria-label="Send message">↑</button>
+          <button id="stop" type="button" hidden>Stop</button>
+        </div>
+      </form>
+    </footer>
+  </main>
+  <dialog id="handoff-dialog">
+    <form method="dialog">
+      <h2>Continue with OpenAI</h2>
+      <p>Edit the brief before sending. OpenAI will receive the exact text shown below.</p>
+      <div id="brief-fields"></div>
+      <details open><summary>Outgoing text</summary><pre id="outgoing-brief"></pre></details>
+      <p id="brief-estimate" role="status"></p>
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button id="confirm-handoff" value="send">Send to OpenAI</button>
+    </form>
+  </dialog>
+</body>
+</html>

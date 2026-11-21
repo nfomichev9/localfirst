@@ -23,7 +23,7 @@ function patchMarkdown(target, source) {
   while (target.childNodes.length > index) target.lastChild.remove();
 }
 const markdownHighlights = new WeakMap();
-window.renderMarkdown = function (element, raw) {
+window.renderMarkdown = function (element, raw, sources = []) {
   const fragment = document.createElement('div');
   fragment.innerHTML = DOMPurify.sanitize(marked.parse(raw, {gfm: true, breaks: false}), {
     ALLOWED_TAGS: ['p','br','hr','h1','h2','h3','h4','h5','h6','ul','ol','li','strong','em','del','blockquote','pre','code','table','thead','tbody','tr','th','td','a','span'],
@@ -42,6 +42,34 @@ window.renderMarkdown = function (element, raw) {
       code.classList.add('hljs');
     }
   });
+  // Resolve numeric citations against retrieved sources, without editing raw text.
+  const urls = new Map(sources.filter(source => /^https?:\/\//.test(source.url))
+    .map(source => [String(source.number), source.url]));
+  if (urls.size) {
+    const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) {
+      if (!walker.currentNode.parentElement.closest('a,code,pre')) nodes.push(walker.currentNode);
+    }
+    for (const node of nodes) {
+      const matches = [...node.data.matchAll(/\[(\d+(?:,\s*\d+)*)\]/g)]
+        .filter(match => match[1].split(/,\s*/).every(number => urls.has(number)));
+      if (!matches.length) continue;
+      const replacement = document.createDocumentFragment();
+      let offset = 0;
+      for (const match of matches) {
+        replacement.append(node.data.slice(offset, match.index), '[');
+        for (const part of match[1].split(/(\d+)/)) {
+          if (urls.has(part)) {
+            const link = document.createElement('a'); link.textContent = part;
+            link.href = urls.get(part); link.target = '_blank'; replacement.append(link);
+          } else replacement.append(part);
+        }
+        replacement.append(']'); offset = match.index + match[0].length;
+      }
+      replacement.append(node.data.slice(offset)); node.replaceWith(replacement);
+    }
+  }
   fragment.querySelectorAll('a').forEach(a => { a.rel = 'noreferrer noopener'; });
   markdownHighlights.set(element, highlights);
   patchMarkdown(element, fragment);

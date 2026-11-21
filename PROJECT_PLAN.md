@@ -1,5 +1,9 @@
 # LocalFirst — MVP 1 Implementation Plan
 
+> Current scope and priorities are defined in [VISION.md](VISION.md), updated November 20, 2026. The milestones below retain implementation history; older expansion plans do not override the focused direction. Simple local PDF text uploads are now in scope for daily use.
+
+> Next: make the existing product comfortable for a week of personal daily use, then review real friction before business work. [ARCHITECTURE.md](ARCHITECTURE.md) defines later packaging/onboarding: at most five clicks, under one minute excluding downloads. The browser/Python setup below remains the current implementation.
+
 **Status:** Ready to implement  
 **Machine:** Apple M4 Mac mini, 16 GB unified memory  
 **Priority:** Make local chat stable before introducing paid cloud inference or routing  
@@ -138,7 +142,7 @@ folder membership and indexing survive restart; search opens the original chat;
 manual choices survive reruns; cancellation does not leave half-applied organization;
 no chats are deleted, source messages rewritten, or content sent to external services.
 
-## 11. Next milestone — Evaluation Lab and context preparation
+## 11. Paused — Evaluation Lab and context preparation
 
 Agreed product direction: the local model should help prepare a complete request,
 not merely attempt a cheaper answer. Validate that role in a separate Evaluation
@@ -170,8 +174,229 @@ quality, total latency, clarification burden, retries, and total external API co
 including preparation/evaluation costs when applicable. Run equivalent inputs
 against local and frontier models when evaluating provider capability.
 
-Implementation remains a future task. No frontier provider, credentials, paid calls,
-external judging, or automatic routing is authorized by this design agreement.
-Start with local trials and user-defined rubrics; any future cloud trials require
+The first local Evaluation Lab is implemented; see `EVALUATION_LAB.md` and
+`DEVELOPMENT_LOG.md`. No frontier provider, credentials, paid calls, external judging,
+or automatic routing is authorized by this design agreement. Local trials use
+user-defined rubrics and explicit human assessment; any future cloud trials require
 explicit opt-in and spending controls. The chat organization feature remains deferred
 to the final milestone.
+
+### Lab direction update — real conversations are the test set
+
+User clarified that everyday chats, rather than hand-written example prompts, should
+supply evaluation material. The Lab now starts from completed chat answers, links back
+to their source conversation, and imports existing outputs/measurements without extra
+inference. New chat message inputs are recorded for replay; historical context is
+explicitly labeled reconstructed. Criteria chosen after an answer are labeled post-hoc,
+not presented as predeclared tests. Custom experiments remain optional. Every completed
+turn is available to evaluate; it is not automatically graded or treated as successful.
+
+## 12. Next main-site milestone — Make everyday chat easier to use
+
+1. **Retry and model switching — implemented.** The latest stopped or failed
+   reply offers Retry and a choice of installed model. Each attempt keeps its
+   own model, elapsed time, and measurements. The retry reuses the recorded
+   input and leaves the original attempt in the conversation. For older replies
+   without recorded input, it reconstructs the request from saved messages.
+2. **Make conversations easier to find.** Add manual rename and local search across
+   titles and message text. Open the matching conversation from the result. Build
+   this before the deferred model-assisted organizer so users can find and label
+   their own chats as the library grows.
+3. **Show when a conversation is outgrowing its context.** Put the omitted-message
+   count near the composer before sending. On each reply, make the model and context
+   available alongside the existing measurements.
+
+The first slice is ready when a failed or stopped reply can be retried with the same
+model or a different installed model, both attempts survive restart, and the retry
+is recorded as a separate inference. Check the flow with Ollama unavailable, with no
+installed models, and on a narrow screen.
+
+## 13. Next milestone — Settings and frontier handoff in chat
+
+Build a Settings page and connect one frontier provider to the existing chat
+flow. Use the real OpenAI API as the first frontier provider. The local model should complete whatever it can before
+a handoff, then give OpenAI a focused brief for the remaining work. The
+Evaluation Lab remains parked, with saved experiments accessible at /lab.
+Conversation search and rename remain separate work.
+
+### Settings and chat UI
+
+- Add **Settings** to the main sidebar and serve it at /settings. Persist the
+  app-wide routing preference and spending limit in SQLite across restarts.
+  Default to **Always local**, including for existing installations. Snapshot
+  the routing preference at the start of each turn so a settings change applies
+  to the next turn.
+- Show the four modes below as a radio group with a short description of when
+  each mode sends text off the device. Show provider readiness, the configured
+  frontier model, and a daily cloud spending limit. Keep the OpenAI API key in
+  server configuration and return only readiness to the browser. Reject saves
+  for cloud-enabled modes until the key, model, and positive spending limit
+  are configured. Clearly explain what needs to be set up.
+- Display the active routing mode near Send. Keep the installed local model
+  picker for modes that use it. In **Always frontier**, show the configured
+  frontier model in its place. Label replies with the provider and model.
+  Preserve the local answer when showing a frontier continuation.
+
+| Mode | Behavior |
+| --- | --- |
+| **Always local** | Send to Ollama. Every turn stays on the device. |
+| **Manual handoff** | Send to Ollama first. Offer **Continue with OpenAI** on the local reply. Generate the handoff brief locally, then show the exact outgoing text and estimated charge. The user can remove or edit content and confirms each send. A handoff always retains a locally prepared summary and focused task. |
+| **Automatic handoff** | Send to Ollama first. When the local assessment identifies a specific unresolved task that OpenAI can take over, generate and validate the same handoff brief and send it automatically within the limit. Enabling this mode requires explicit acknowledgment in Settings that request content may leave the device without per-turn confirmation. Show why the app handed off. |
+| **Always frontier** | Send directly to OpenAI on Send, with bounded conversation context and a clear indication that the request goes to OpenAI. Enabling the mode requires explicit acknowledgment in Settings. This route skips local inference and handoff preparation. |
+
+### Handoff rules
+
+- Both handoff modes use the same preparation path. The local model produces
+  a concise summary of the request and work so far, relevant facts and constraints,
+  the unresolved part or requested review, and a focused instruction for OpenAI.
+  Have it distinguish provided facts from draft claims and assumptions. Include
+  the latest user request and bounded source excerpts needed to do the remaining
+  work. Prefer exact excerpts for requirements and evidence that would lose
+  meaning in a summary.
+- Validate that the brief contains a summary and focused task and fits the input
+  limit. Treat local-generated content as untrusted input and enforce routing,
+  provider, and budget on the server. If Ollama is unavailable, preparation
+  fails, or the brief is unusable, keep the local result and show the failure.
+  Both handoff modes require a valid brief before any frontier generation.
+- For automatic handoff, use an explicit structured disposition such as
+  **Answered**, **Needs user input**, or **Needs frontier help**. For the last
+  disposition require a concrete unresolved task and a usable brief. Treat
+  uncertain or invalid dispositions as local outcomes. Ask the user for
+  essential missing facts. A low confidence score alone cannot trigger a call.
+  Limit automatic handoff to one frontier generation per user turn.
+- In manual mode, preview the final outbound payload, including any text added
+  by the app, before sending it. Recalculate the estimate if the user edits it.
+  In automatic mode, show the handoff reason and make the sent brief inspectable
+  in the thread. Always frontier sends bounded chat context according to its
+  own direct route.
+
+### Provider, usage, and failure handling
+
+- Adapt OpenAI streaming to the existing browser chat events and reuse the local
+  conversation and telemetry stores. Accept Stop during either phase. Save the
+  local reply and the separate frontier attempt with their relationship, route
+  reason, provider, model, status, latency, and reported token usage. Keep any
+  failed or stopped partial output labeled in history.
+- Before a paid generation, reserve a conservative charge against the persisted
+  daily limit using bounded input, maximum output tokens, and the configured
+  model's rates. Reserve atomically so concurrent requests cannot exceed the
+  limit. Reconcile against reported usage when available. Keep unresolved spend
+  reserved when a cancelled or failed call could still be billed. Use the same
+  guard for every frontier route. Label estimates and token-derived charges in
+  Usage, and show unknown usage as unknown.
+- Surface unavailable providers, missing configuration, and budget exhaustion
+  in context. Keep the local result available on a failed handoff. Always
+  frontier reports a blocked send and lets the user change modes in Settings.
+  A different route requires a user choice. Never echo the API key or raw
+  request bodies to diagnostic logs.
+
+### Build order and acceptance
+
+1. Add Settings persistence and chat mode indicators. Verify all four choices
+   survive a restart, existing installs start local, and the current local
+   send, retry, and stop flows still work.
+2. Add the OpenAI adapter using the real API. Read the user-supplied key from
+   the server environment. Implement the spending guard, streaming, persistence,
+   and Always frontier first. Test routing and budget logic offline. Gate the
+   live integration checks on the configured key, model, and spending limit.
+3. Implement shared local brief preparation and manual preview, then automatic
+   routing. Verify the outgoing content in both handoff modes. Test that
+   dismissing the preview, a complete local answer, missing user facts,
+   invalid preparation, or an exhausted budget produces zero frontier
+   generation calls. Verify an automatic handoff sends at most once and
+   preserves the local reply. Cover Settings and chat on narrow screens.
+4. Run the existing Python and browser suites. Verify that successful, stopped,
+   and failed attempts retain accurate status and usage after restart. Once the
+   user configures credentials and a limit, run a small paid smoke test against
+   the real OpenAI API with synthetic prompts. Check that Always frontier skips
+   Ollama, both handoff modes send the focused brief, and streamed replies and
+   reported usage are saved. Keep paid tests opt-in.
+
+### Evaluate after the flow works
+
+Use a small set of representative requests and write success criteria first.
+Compare local-only, local plus handoff, and frontier-only on the same requests.
+Measure answer quality, total wait including local preparation, and frontier
+tokens and spend. Use the results to decide where local work earns its time and
+where automatic handoff needs tighter triggers.
+
+## 14. Focus reset — November 16, 2026
+
+Current direction is `VISION.md`: simple local chat, relevant frontier help when a
+request needs stronger reasoning or verification, and a small real-chat evaluation
+space. File uploads/folder access, chat organization, autonomous features, and product
+administration remain later work. Ordinary model/privacy/spending Settings are distinct
+from a future staff/admin console. Favor a focused VS Code development workflow.
+
+Next implementation work should simplify the existing conversation and handoff path,
+not introduce another surface or integration. Consider Chat/Lab/Settings as the visible
+structure and keep detailed analytics secondary. These are proposed changes; no current
+routing mode, data, navigation, account, or device configuration was changed by this
+planning update. Retain existing cloud/handoff work while reducing visible complexity.
+
+## 15. Customer discovery before selecting a delivery model
+
+November 16, 2026: user requested a broad map of potential customers and actual AI
+workflows before choosing an audience or fixing where LocalFirst lives. See
+`docs/research/customer-landscape-2026-11-16.md` and `customer-segments.csv` in the same
+directory. The map covers 30 overlapping customer types, likely buyers, workflow and
+billing hypotheses, possible local/frontier splits, placement options and blockers.
+
+Proposed first research cohort: automation agencies, marketing/content agencies with
+actual usage-based costs, and small development agencies; compare with MSP/channel
+partners and fixed-subscription users. This is an interview shortlist, not a market
+selection. Verify bills, repeat tasks, quality criteria, current tools, hardware and
+willingness to adopt before choosing a desktop chat, companion, API layer or shared
+local deployment. No outreach, pilots, paid requests, product integrations or new
+implementation work was performed or authorized by this desk research.
+
+## 16. Product architecture — November 16, 2026
+
+Sequencing clarified November 17 in milestone 17 below: personal daily use comes first.
+
+User requested a comprehensive, simple architecture brief, starting with an executive
+summary and favoring tables/diagrams. `ARCHITECTURE.md` recommends one desktop app,
+shared local engine, managed Ollama runtime and SQLite; supporting implementation
+requirements are in `docs/architecture/engineering-notes.md`. Reuse the current stack.
+
+First prove private runtime packaging, signing, streaming and clean shutdown on a
+clean Mac without developer tools. Then implement hardware recommendation/manual
+entry, consented resumable verified model setup and recovery. Keep customer discovery
+in parallel; the supported artifact/device matrix and winning workflow remain open.
+The under-one-minute ambition must distinguish full cold setup from cached-model and
+interaction times. No universal multi-GB download guarantee is proposed.
+
+Retain the small real-chat Lab and existing handoff work. Optional direct provider keys
+can serve a technical pilot; effortless public frontier access needs a separately
+designed managed billing/gateway path. Customer/staff consoles, files, organization and
+workers stay staged later. This milestone records a proposal, not implemented features.
+
+## 17. Personal-use week and guided setup — November 17, 2026
+
+User clarified the setup target: under one minute **excluding actual downloads**, with
+at most five clicks on the normal recommended path and clear guidance throughout.
+Count required install/launch and permission actions. Keep optional manual hardware
+entry; automatic preparation transitions into chat without another confirmation.
+
+The immediate milestone is a useful everyday product: simplify chat/help and fix real
+interruptions, then use the existing app for ordinary work for about a week. Record
+brief friction notes and reuse saved chats/the existing Lab selectively. Fix blockers
+as they appear. Production packaging, new feedback infrastructure and formal experiment
+setup are not prerequisites for this week.
+
+Review whether the app is naturally useful, handles context/help clearly, preserves
+history and recovers reliably before considering marketing, billing, customer admin or
+internal “god mode.” Those surfaces remain deferred. Packaging and guided onboarding
+follow the personal-use findings; retain the long-term shared-engine design.
+
+## 18. PDF uploads for everyday chat — November 20, 2026
+
+User chose PDF uploads as the first file capability, replacing the proposed PowerPoint
+start. Add a file picker/drag-drop to the existing chat, local text extraction and
+page references. Save extracted pages with local chat for follow-ups; discard original
+bytes. Keep PDF conversations local across routing modes, retries and handoff paths.
+
+Use bounded page excerpts for long documents and disclose coverage. Clearly report
+scanned/unreadable pages; OCR, image/chart understanding, other file types, browsing
+and file-management interfaces remain separate work. Implementation specification:
+`docs/implementation/pdf-chat.md`. Marketing, billing and admin remain deferred.

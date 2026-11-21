@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Evaluation Lab — LocalFirst</title><link rel="stylesheet" href="/static/styles.css"><link rel="stylesheet" href="/static/lab.css?v=2"><script src="/static/vendor/marked.min.js" defer></script><script src="/static/vendor/purify.min.js" defer></script><script src="/static/vendor/highlight.min.js" defer></script><script src="/static/markdown.js" defer></script><script src="/static/streaming.js" defer></script><script src="/static/lab.js?v=2" defer></script></head>
+<body class="lab-page">
+<main>
+<header class="lab-header">
+  <a class="brand" href="/">LocalFirst</a>
+  <nav aria-label="Workspace"><a href="/">Chat</a><a href="/usage">Usage</a></nav>
+</header>
+<div class="lab-content">
+  <div class="lab-heading"><h1>Evaluation Lab</h1><button id="new-task">New experiment</button></div>
+  <div class="lab-board">
+    <section class="chat-inbox" aria-labelledby="chat-list-title">
+      <div class="lab-section-top"><h2 id="chat-list-title">Recent answers</h2><button id="refresh-chat-turns">Refresh</button></div>
+      <div id="chat-turns"></div>
+      <button id="more-chat-turns" hidden>Load more answers</button>
+      <details class="saved-experiments"><summary>Saved experiments</summary>
+        <nav id="task-list" aria-label="Saved experiments"></nav>
+        <label class="lab-mobile-nav">Open experiment<select id="task-picker"><option value="">Choose a saved experiment</option></select></label>
+      </details>
+    </section>
+    <div class="lab-detail">
+      <div id="lab-status" role="status" hidden></div>
+      <div id="lab-empty" class="lab-panel" hidden><h2>No chat answers yet</h2><p>Send a message in <a href="/">Chat</a> to review your first local answer here.</p></div>
+      <article id="chat-source" class="lab-panel lab-report" hidden>
+        <section class="report-request">
+          <h2>Request</h2><p id="chat-source-request" class="lab-request"></p>
+          <p id="chat-source-model" class="lab-note"></p>
+        </section>
+        <div class="report-summary">
+          <section><h2>Local cost</h2><strong id="chat-source-cost"></strong><p id="chat-source-runtime" class="lab-note"></p></section>
+          <section><h2>Answer quality</h2><strong>Not rated yet</strong><div class="report-actions"><button id="rate-answer" class="lab-primary">Rate answer</button><button id="start-review">Edit criteria</button></div></section>
+        </div>
+        <section class="report-answer"><h2>Local answer</h2><div id="chat-source-answer" class="message-content"></div></section>
+        <details class="report-details"><summary>Source details</summary><p id="chat-source-info" class="lab-note"></p><a id="chat-source-link" href="/">Open source conversation ↗</a></details>
+      </article>
+<section id="evaluation-results" hidden>
+<div class="section-heading"><h2>Saved evaluations</h2><span id="history-count"></span></div><div id="trial-history" class="lab-trials"></div>
+</section>
+<div id="live-operation" hidden><h3 id="live-label">Generating…</h3><div id="live-output" class="message-content"></div></div>
+<button id="stop-lab" hidden>Stop</button>
+<details id="experiment-tools"><summary>Experiment tools</summary>
+<div class="lab-layout"><section class="lab-panel"><h2>Assessment criteria</h2><details><summary>Optional manual examples</summary><div class="example-actions"><button id="example-math">Try arithmetic</button><button id="example-context">Try missing context</button></div></details>
+<form id="task-form"><label>Experiment name<input id="task-title" required maxlength="120" placeholder="A task I want the model to handle"></label><label>Original prompt<textarea id="task-prompt" required maxlength="16000" rows="4" placeholder="What do you want accomplished?"></textarea></label><label>Context you already have<textarea id="task-context" maxlength="800000" rows="3" placeholder="Relevant source text, requirements, or facts"></textarea></label><label>Success criteria · one per line<textarea id="task-criteria" required rows="4" placeholder="What would a successful answer need to do?"></textarea></label><details><summary>Optional reference check</summary><p class="lab-note">A string check provides limited evidence. The reference is withheld from the model; human review remains separate.</p><label>Check type<select id="check-mode"><option value="none">No automatic check</option><option value="exact">Exact answer · trim outer whitespace</option><option value="contains">Contains literal reference text</option></select></label><label>Reference answer<textarea id="task-reference" maxlength="4000" rows="2"></textarea></label></details><button type="submit" id="save-task" class="lab-primary">Save experiment</button><p id="task-version" class="lab-note">Save before running. Tasks and results remain on this machine.</p></form>
+</section>
+<div class="lab-workbench"><section class="lab-panel"><div class="lab-section-top"><h2>Prepare a prompt</h2></div><p class="lab-note">Ask the local model what is essential but missing, then review its draft. It can be wrong; it does not retrieve information or execute the task here.</p><label>Installed model<select id="lab-model"><option value="">Connecting…</option></select></label><div class="lab-actions"><button id="prepare-task">Check context &amp; draft</button></div><div id="preparation-result" aria-label="Context check result"><p class="lab-empty">No context check yet. You can also write a prepared prompt yourself.</p></div>
+<label>Prepared prompt · review and edit<textarea id="prepared-prompt" maxlength="4000" rows="4" placeholder="A draft you have reviewed, or your own rewrite"></textarea></label><p id="draft-source" class="lab-note">Manual draft. Original source context and criteria will also be sent.</p><label>Additional context you supply<textarea id="added-context" maxlength="4000" rows="3" placeholder="Answers to clarifying questions belong here"></textarea></label><p class="lab-note">Added context is recorded separately. An improved answer with new information does not establish that rewriting alone helped.</p><label class="lab-confirm"><input id="confirm-draft" type="checkbox">I reviewed the draft and its assumptions, and accept this prepared input.</label></section>
+<section class="lab-panel"><h2>Run a trial</h2><p class="lab-note">Each trial saves its exact inputs, task revision, model, output, and measurements. Generation completing is not a passing test.</p><div class="lab-actions"><button id="run-original" class="lab-primary">Run original</button><button id="run-prepared">Run prepared</button></div><p class="lab-note">Local context window: 4,096 tokens. Long inputs may be truncated by Ollama. Only the saved task, shared context, criteria, and explicit additions are sent; other chats are excluded.</p></section></div></div>
+<details id="preparation-history"><summary>Context-check history</summary><div id="preparation-records"></div></details>
+</details>
+    </div>
+  </div>
+</div>
+</main></body></html>

@@ -94,7 +94,28 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     await page.waitForFunction(() => document.querySelector('#usage-status').textContent.startsWith('Showing'));
     // API model filter with no observations preserves truthful empty state.
     const empty = await (await fetch(base+'/api/usage?model=missing')).json(); assert.equal(empty.overview.requests, 0);
+    await page.goto(base+'/settings');
+    await page.getByRole('button', {name:'Save settings'}).waitFor();
+    await page.getByRole('combobox', {name:'Response mode'}).waitFor();
+    assert.equal(await page.locator('#mode option').count(), 4);
+    assert.equal(await page.locator('#mode').inputValue(), 'always_local');
+    await page.getByRole('tab', {name:'Spending', exact:true}).click();
+    await page.getByLabel('Daily cloud spending limit (USD)').fill('0.01');
+    await page.getByRole('button', {name:'Save settings'}).click();
+    await page.getByText('Settings saved.').waitFor();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'mobile settings fit');
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#limit').value === '0.01');
+    await page.getByRole('link', {name:'Back to chat'}).click();
+    await page.waitForURL(base + '/');
+    await page.getByRole('link', {name:'Settings', includeHidden:true}).waitFor({state:'attached'});
+    assert.equal(await page.locator('#routing-mode').textContent(), 'Always local');
+    await require('./settings-browser.cjs')(browser, base);
     await require('./streaming.cjs')(browser, base);
+    await require('./lab-browser.cjs')(browser, base);
+    await require('./pdf-browser.cjs')(browser, base);
+    await require('./handoff-browser.cjs')(browser, base);
+    await require('./web-browser.cjs')(browser, base);
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
     console.log('PASS: streaming/historical Markdown, XSS sanitization, highlighting, metrics, feedback, dashboard, chart interaction, mobile, zero external requests');
   } finally {

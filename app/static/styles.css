@@ -22,3 +22,9 @@
 .response-enter{animation:response-entrance 160ms ease-out both}
 @keyframes response-entrance{from{opacity:.94;transform:translateY(2px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.response-enter{animation:none}#thread{scroll-behavior:auto}}
+.evaluate-chat{display:inline-block;margin-top:8px;color:#9fb48d;font-size:11px;text-decoration:none}.evaluate-chat:hover{text-decoration:underline}
+
+.retry-reply{display:none;margin-top:10px;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}
+.message:last-child .retry-reply{display:flex}
+.retry-reply select,.retry-reply button{padding:5px 8px;border:1px solid #47523e;border-radius:5px}
+.retry-reply button{background:#242a21;color:var(--accent)}

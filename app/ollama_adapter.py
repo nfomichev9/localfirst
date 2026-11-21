@@ -2,6 +2,8 @@
 import json
 import math
 import httpx
+from .documents import PDF_CONTEXT_PREFIX, PDF_CONTEXT_WINDOW
+from .web_search import WEB_CONTEXT_PREFIX, WEB_CONTEXT_WINDOW
 
 
 def count_metric(value):
@@ -54,6 +56,10 @@ class OllamaAdapter:
             'model': model, 'messages': messages, 'stream': True,
             'options': {'num_ctx': 4096, 'num_predict': 2048},
         }
+        if any(m['role'] == 'system' and m['content'].startswith(PDF_CONTEXT_PREFIX) for m in messages):
+            payload['options']['num_ctx'] = PDF_CONTEXT_WINDOW
+        if any(m['role'] == 'system' and m['content'].startswith(WEB_CONTEXT_PREFIX) for m in messages):
+            payload['options']['num_ctx'] = WEB_CONTEXT_WINDOW
         # Lightweight Gemma chat prioritizes an immediate answer over a thinking trace.
         if model.split(':', 1)[0] == 'gemma4':
             payload['think'] = False

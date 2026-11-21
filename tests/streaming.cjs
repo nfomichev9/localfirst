@@ -94,6 +94,8 @@ module.exports = async function streamingChecks(browser, base) {
     await page.waitForTimeout(200);
     assert.equal(await page.locator('.assistant .message-content').innerHTML(), stopped, 'Stop freezes the displayed response');
     assert.match(await page.locator('.assistant .message-error').innerText(), /Stopped/);
+    assert.equal(await page.getByLabel('Model for retry').inputValue(), 'test:local');
+    assert.equal(await page.getByRole('button', {name:'Retry', exact:true}).isEnabled(), true);
     // Errors also flush a final partial batch without converting it to success.
     await page.locator('#new-chat').click();
     await page.locator('#prompt').fill('__streaming_error__'); await page.locator('#send').click();
@@ -104,6 +106,33 @@ module.exports = async function streamingChecks(browser, base) {
     assert.equal(await page.locator('.assistant').evaluate(el => getComputedStyle(el).animationName), 'none');
     await page.setViewportSize({width:390,height:844});
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-    console.log('PASS: frame batching, terminal flush, Unicode integrity, stable DOM/selection, scroll ownership, Stop, error partials, reduced motion, mobile chat');
+    const model = page.getByLabel('Model for retry');
+    const retry = page.getByRole('button', {name:'Retry', exact:true});
+    await page.route('**/api/models', route => route.fulfill({status:503, json:{detail:'Ollama offline'}}));
+    await page.getByRole('button',{name:'Refresh installed models'}).click();
+    await page.getByText('Ollama offline',{exact:true}).waitFor();
+    assert.equal(await retry.isDisabled(), true);
+    await page.unroute('**/api/models');
+    await page.route('**/api/models', route => route.fulfill({json:{models:[]}}));
+    await page.getByRole('button',{name:'Refresh installed models'}).click();
+    await page.getByText('No models installed',{exact:true}).waitFor();
+    assert.equal(await retry.isDisabled(), true);
+    await page.unroute('**/api/models');
+    await page.getByRole('button',{name:'Refresh installed models'}).click();
+    await model.selectOption('second:local');
+    await page.locator('#prompt').fill('Unsent draft');
+    await retry.click();
+    await page.waitForFunction(() => !document.querySelector('#send').hidden);
+    assert.equal(await page.locator('#prompt').inputValue(), 'Unsent draft');
+    assert.equal(await page.locator('.message.user').count(), 1);
+    assert.equal(await page.locator('.message.assistant').count(), 2);
+    assert.match(await page.locator('.assistant').last().locator('.message-heading').innerText(), /RETRY/);
+    assert.match(await page.locator('.assistant').last().locator('.metrics summary').innerText(), /second:local.*success/);
+    const retryConversation = await page.evaluate(() => current);
+    await page.goto(base+'/?conversation='+retryConversation);
+    await page.locator('.assistant').last().locator('.metrics summary').waitFor();
+    assert.equal(await page.locator('.message.assistant').count(), 2);
+    assert.match(await page.locator('.assistant').first().locator('.message-error').innerText(), /interrupted/);
+    console.log('PASS: streaming stability, cancellation, error partials, retry model switching, offline and empty catalogs, persistence, mobile chat');
   } finally {await page.close();}
 };

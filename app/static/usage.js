@@ -69,7 +69,7 @@ async function loadUsage() {
       ['Inference requests', num(o.requests), `${num(o.successful_requests)} successful · ${num(o.running_requests)} running`],
       ['Local inference', percent(o.local_percentage), 'Share of successful requests'],
       ['Cloud inference', percent(o.cloud_percentage), 'Share of successful requests'],
-      ['Actual API spending', money(o.external_api_cost), `${num(o.cost_samples)} of ${num(o.requests)} requests have known costs`]
+      ['Token-derived API charges', money(o.external_api_cost), `${num(o.cost_samples)} of ${num(o.requests)} requests have known costs`]
     ]);
     cards('performance-cards', [
       ['Average latency', seconds(o.average_latency_ms), `${num(o.latency_samples)} measured attempts`],
@@ -82,6 +82,9 @@ async function loadUsage() {
       ['Cancellation rate', percent(o.cancellation_rate), 'Cancelled / all admitted attempts']
     ]);
     $('coverage').textContent = 'Latency includes model discovery, context preparation, and generation. First-token time is measured when nonempty response content arrives. Unknown measurements display —. Rates use all admitted attempts, including running ones.';
+    const budget = data.cloud_budget;
+    document.getElementById('cloud-budget').textContent =
+      `Today’s cloud budget · ${money(budget.reserved_or_charged)} of ${money(budget.limit)} used or reserved · ${money(budget.unresolved_estimate)} estimated for requests with unknown charges.`;
     chart('requests-chart', data.trends, 'Requests'); chart('tokens-chart', data.trends, 'Tokens'); chart('cost-chart', data.trends, 'API costs');
     $('model-rows').replaceChildren(...data.by_model.map(m => {
       const row = document.createElement('tr');

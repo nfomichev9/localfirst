@@ -68,6 +68,40 @@ def packets(response):
     return [json.loads(line) for line in response.text.splitlines()]
 
 
+def test_home_settings_link_loads_current_assets_and_revalidates_cache(tmp_path):
+    from html.parser import HTMLParser
+
+    class References(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.urls = []
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            url = attrs.get('href') or attrs.get('src')
+            if url:
+                self.urls.append(url)
+
+    with client_for(tmp_path) as (client, _):
+        home = client.get('/')
+        links = References()
+        links.feed(home.text)
+        settings_link = next(url for url in links.urls if url.startswith('/settings'))
+        assert '?' in settings_link, 'bypass a previously cached Settings document'
+        settings = client.get(settings_link)
+        assert settings.status_code == 200
+        assert 'id="settings-dialog"' in settings.text
+        assets = References()
+        assets.feed(settings.text)
+        assert len(assets.urls[:2]) == 2
+        for url in assets.urls[:2]:
+            assert '?v=' in url
+            response = client.get(url)
+            assert response.status_code == 200
+            assert response.headers['cache-control'] == 'no-cache'
+        assert home.headers['cache-control'] == settings.headers['cache-control'] == 'no-cache'
+
+
 def test_chat_followup_metrics_models_and_restart(tmp_path):
     with client_for(tmp_path) as (client, fake):
         assert client.get('/').status_code == 200
@@ -132,6 +166,55 @@ def test_bounded_context_notice(tmp_path):
         assert packets(response)[0]['omitted_messages'] == 2
         assert len(fake.requests[-1][1]) == 13
         assert len(client.get(f'/api/conversations/{cid}').json()['messages']) == 16
+
+
+def test_retry_preserves_attempts_and_reuses_context_after_restart(tmp_path):
+    with client_for(tmp_path) as (client, fake):
+        cid = create(client)
+        for i in range(7):
+            send(client, cid, content=f'Prior message {i}')
+        fake.mode = 'error'
+        failed = packets(send(client, cid, content='Try again', model='llama3.2:3b'))[0]
+        original_request = fake.requests[-1][1]
+        original = client.get(f'/api/conversations/{cid}').json()['messages'][-1]
+
+    with client_for(tmp_path) as (client, fake):
+        path = f"/api/conversations/{cid}/messages/{failed['message_id']}/retry"
+        assert client.post(path, json={'model':'uninstalled'}).status_code == 400
+        fake.mode = 'offline'
+        assert client.post(path, json={'model':'other:small'}).status_code == 503
+        fake.mode = 'ok'
+        retried = packets(client.post(path, json={'model':'other:small'}))
+        assert retried[-1]['type'] == 'done'
+        assert retried[0]['omitted_messages'] == failed['omitted_messages'] == 2
+        assert fake.requests[-1] == ('other:small', original_request)
+        assert client.post(path, json={'model':'other:small'}).status_code == 409
+        send(client, cid, content='Continue')
+        assert fake.requests[-1][1][-3:] == [
+            {'role':'user', 'content':'Try again'},
+            {'role':'assistant', 'content':'Hello world'},
+            {'role':'user', 'content':'Continue'},
+        ]
+
+    with client_for(tmp_path) as (client, fake):
+        messages = client.get(f'/api/conversations/{cid}').json()['messages']
+        assert messages[-5]['content'] == 'Try again'
+        assert messages[-4] == original
+        replacement = messages[-3]
+        assert replacement['retry_of'] == original['id']
+        assert replacement['telemetry']['request_id'] != original['telemetry']['request_id']
+        assert replacement['telemetry']['model'] == 'other:small'
+
+
+def test_retry_legacy_stopped_reply(tmp_path):
+    with client_for(tmp_path) as (client, fake):
+        storage = client.app.state.storage
+        cid = create(client)
+        storage.add(cid, 'user', 'Older saved request')
+        mid = storage.add(cid, 'assistant', 'Partial', 'llama3.2:3b', 'stopped')
+        response = client.post(f'/api/conversations/{cid}/messages/{mid}/retry', json={'model':'llama3.2:3b'})
+        assert packets(response)[-1]['type'] == 'done'
+        assert fake.requests[-1] == ('llama3.2:3b', [{'role':'user', 'content':'Older saved request'}])
 
 
 async def test_disconnect_cancels_upstream_and_releases_lock(tmp_path):
