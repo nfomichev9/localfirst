@@ -1,0 +1,61 @@
+<div id="localfirst-focus-board">
+  <div class="lf-title">
+    <h2>LocalFirst · Product focus</h2>
+    <span class="text-small text-muted">Direction · November 16, 2026</span>
+  </div>
+  <dl class="lf-north-star">
+    <dt>Promise</dt>
+    <dd>A simple local chat that gets stronger help when needed.</dd>
+  </dl>
+  <div class="viz-grid" role="group" aria-label="Product spaces">
+    <button class="btn" type="button" data-concept="chat" aria-pressed="true">Chat · primary</button>
+    <button class="btn" type="button" data-concept="lab" aria-pressed="false">Lab · supporting</button>
+    <button class="btn" type="button" data-concept="admin" aria-pressed="false">Admin · later</button>
+  </div>
+  <section class="lf-detail" aria-live="polite" aria-atomic="true" aria-label="Selected product concept">
+    <h3 data-field="title">One calm conversation</h3>
+    <dl>
+      <dt>Purpose</dt><dd data-field="purpose">Get useful work done with a local model.</dd>
+      <dt>Core loop</dt><dd data-field="loop">Ask → local answer → clarify or get frontier help → continue.</dd>
+      <dt>Execution bar</dt><dd data-field="quality">Fluid responses, intact context, dependable Stop, clear provider and spending.</dd>
+      <dt>Keep small</dt><dd data-field="scope">One main experience; advanced routing stays out of the everyday path.</dd>
+    </dl>
+  </section>
+  <hr>
+  <dl class="lf-boundaries">
+    <dt>Focus now</dt><dd>Chat quality · focused frontier help · evidence from real chats</dd>
+    <dt>Defer</dt><dd>File uploads · folder access · chat organization · product administration</dd>
+    <dt>Measure</dt><dd>Task success · total wait · actual spend · reliability · privacy</dd>
+  </dl>
+</div>
+<style>
+#localfirst-focus-board{color:var(--foreground);display:grid;gap:calc(var(--font-size-base)*1.25)}
+#localfirst-focus-board .lf-title{display:flex;flex-direction:column;gap:calc(var(--font-size-base)*.25);padding-inline-end:calc(var(--font-size-base)*7)}
+#localfirst-focus-board dl{display:grid;grid-template-columns:minmax(90px,auto) minmax(0,1fr);gap:calc(var(--font-size-base)*.65) calc(var(--font-size-base)*1.25);margin:0}
+#localfirst-focus-board dt{font-weight:500}
+#localfirst-focus-board dd{margin:0;overflow-wrap:anywhere}
+#localfirst-focus-board .lf-detail{display:grid;gap:calc(var(--font-size-base)*.75)}
+@media(max-width:460px){#localfirst-focus-board dl{grid-template-columns:1fr;gap:calc(var(--font-size-base)*.4)}#localfirst-focus-board dd{margin-bottom:calc(var(--font-size-base)*.6)}}
+</style>
+<script>
+(() => {
+  const root = document.getElementById('localfirst-focus-board');
+  const concepts = {
+    chat:{title:'One calm conversation',purpose:'Get useful work done with a local model.',loop:'Ask → local answer → clarify or get frontier help → continue.',quality:'Fluid responses, intact context, dependable Stop, clear provider and spending.',scope:'One main experience; advanced routing stays out of the everyday path.'},
+    lab:{title:'Learn from the chats we actually have',purpose:'Find where local answers succeed, fail, or need better context.',loop:'Choose a real answer → define success → assess → compare a prepared request or stronger model.',quality:'Saved inputs and answers, visible assumptions, human review, meaningful comparisons.',scope:'A small review space. Model judging is evidence, not proof; every chat is not automatically a pass.'},
+    admin:{title:'Operator controls when we productize',purpose:'Operate the product and investigate problems.',loop:'Inspect health and usage → manage provider and spending policy → diagnose failures.',quality:'Separate staff access, clear permissions, auditable actions.',scope:'Design later. Ordinary user settings stay separate; no admin console in the current build scope.'}
+  };
+  function select(key, persist=false) {
+    if (!Object.hasOwn(concepts,key)) key='chat';
+    root.querySelectorAll('button[data-concept]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.concept===key)));
+    Object.entries(concepts[key]).forEach(([field,value]) => {root.querySelector(`[data-field="${field}"]`).textContent=value;});
+    if (persist && window.openai?.setWidgetState) window.openai.setWidgetState({modelContent:{selectedConcept:key},privateContent:null}).catch(()=>{});
+  }
+  root.querySelectorAll('button[data-concept]').forEach(button => button.addEventListener('click',()=>select(button.dataset.concept,true)));
+  select(window.openai?.widgetState?.modelContent?.selectedConcept || 'chat');
+  window.addEventListener('openai:set_globals',event=>{
+    const state=event.detail?.globals?.widgetState;
+    if (state) select(state.modelContent?.selectedConcept || 'chat');
+  });
+})();
+</script>

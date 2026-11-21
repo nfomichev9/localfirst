@@ -21,7 +21,7 @@ def test_safe_migration_retains_raw_history(tmp_path):
         assert message['content'] == '# **Raw** `markdown`'
         assert message['telemetry'] is None
         with store.connect() as db:
-            assert db.execute('SELECT COUNT(*) FROM schema_migrations').fetchone()[0] == 1
+            assert db.execute('SELECT COUNT(*) FROM schema_migrations').fetchone()[0] == 2
 
 
 def test_persistence_nulls_recovery_and_no_content(tmp_path):

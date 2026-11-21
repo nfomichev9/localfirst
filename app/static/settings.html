@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Settings · LocalFirst</title>
+  <link rel="stylesheet" href="/static/settings.css?v=3">
+  <script src="/static/settings.js?v=3" defer></script>
+</head>
+<body>
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <header class="dialog-header">
+      <h1 id="settings-title">Settings</h1>
+      <a class="close-button" href="/" aria-label="Back to chat" title="Close settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </a>
+    </header>
+    <div class="settings-layout">
+      <aside class="settings-sidebar">
+        <div class="settings-tabs" role="tablist" aria-label="Settings sections" aria-orientation="vertical">
+          <button id="chat-tab" class="settings-tab" type="button" role="tab" aria-selected="true" aria-controls="chat-panel" data-section="chat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8H5l-3 2v-10a9 9 0 0 1 18 0Z"/><path d="M8 9h8M8 13h5"/></svg>
+            Chat
+          </button>
+          <button id="spending-tab" class="settings-tab" type="button" role="tab" aria-selected="false" aria-controls="spending-panel" tabindex="-1" data-section="spending">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M9 15v-4M14 15V7M19 15v-6"/></svg>
+            Spending
+          </button>
+        </div>
+        <div class="sidebar-bottom">
+          <a href="/usage">Usage &amp; analytics <span aria-hidden="true">↗</span></a>
+          <span class="local-caption"><span class="local-mark" aria-hidden="true">L</span> LocalFirst</span>
+        </div>
+      </aside>
+      <form id="settings" novalidate aria-busy="true">
+        <div class="settings-content">
+          <section id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
+            <div class="section-heading">
+              <h2>Chat</h2>
+              <p>Choose where your answers come from.</p>
+            </div>
+            <div class="setting-row">
+              <div class="setting-copy">
+                <label for="mode">Response mode</label>
+                <p id="mode-description">Loading your preference…</p>
+              </div>
+              <div class="select-wrap">
+                <select id="mode" name="mode" aria-describedby="mode-description" required disabled>
+                  <option value="always_local">Always local</option>
+                  <option value="manual_handoff">Ask before cloud help</option>
+                  <option value="automatic_handoff">Automatic cloud help</option>
+                  <option value="always_frontier">Always use cloud</option>
+                </select>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-copy">
+                <h3>Cloud model</h3>
+                <p>Optional help from OpenAI.</p>
+              </div>
+              <div class="connection-value">
+                <span id="readiness" class="connection-badge">Checking configuration</span>
+                <span id="frontier-model"></span>
+                <button id="edit-connection" class="connection-button" type="button">Connect</button>
+              </div>
+            </div>
+            <p id="provider-note" class="section-note" hidden>Connect your OpenAI API key to use cloud help. Local chat is available without it.</p>
+            <div id="connection-editor" class="connection-editor" hidden aria-labelledby="connection-heading">
+              <h3 id="connection-heading">Connect OpenAI</h3>
+              <p>This connection uses an OpenAI API key. Your ChatGPT login isn’t used here.</p>
+              <label for="connection-key">API key</label>
+              <input id="connection-key" type="password" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="Paste your API key" maxlength="512" aria-describedby="key-storage-note">
+              <p id="key-storage-note">Saved in macOS Keychain, outside your chat database. Your saved key is not shown again.</p>
+              <label for="connection-model">Cloud model</label>
+              <select id="connection-model" disabled></select>
+              <p><a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Get an API key <span aria-hidden="true">↗</span></a></p>
+              <p id="connection-status" role="status" aria-live="polite"></p>
+              <div class="connection-actions">
+                <button id="cancel-connection" class="secondary-button" type="button">Cancel</button>
+                <button id="save-connection" class="primary-button" type="button" disabled>Save connection</button>
+              </div>
+            </div>
+            <div class="privacy-note">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+              <p><strong>PDF conversations stay local.</strong> Your PDFs are read on this computer, regardless of the response mode.</p>
+            </div>
+          </section>
+          <section id="spending-panel" role="tabpanel" aria-labelledby="spending-tab" hidden>
+            <div class="section-heading">
+              <h2>Spending</h2>
+              <p>Keep cloud help within a comfortable limit.</p>
+            </div>
+            <div class="setting-row">
+              <div class="setting-copy">
+                <label for="limit">Daily cloud limit</label>
+                <p>Applies to this installation. Resets at local midnight.</p>
+              </div>
+              <div class="currency-input">
+                <span aria-hidden="true">$</span>
+                <input id="limit" aria-label="Daily cloud spending limit (USD)" type="number" min="0" max="100" step="0.01" inputmode="decimal" required disabled>
+                <span class="currency-code">USD</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-copy">
+                <h3>Used or reserved today</h3>
+                <p>Includes requests awaiting final usage.</p>
+              </div>
+              <span id="today-usage" class="usage-value">—</span>
+            </div>
+            <div id="budget-progress" class="budget-progress" hidden>
+              <progress id="usage-progress" aria-label="Daily cloud limit used or reserved" max="1" value="0"></progress>
+              <p id="budget-caption"></p>
+            </div>
+            <p id="budget-note" class="section-note">A positive limit is required for cloud help. Local replies have no external API charge.</p>
+            <a class="usage-link" href="/usage">View usage &amp; analytics <span aria-hidden="true">↗</span></a>
+          </section>
+        </div>
+        <footer class="settings-footer">
+          <label id="consent" class="consent-row" hidden>
+            <input id="acknowledged" type="checkbox" disabled>
+            <span><strong>Allow requests to OpenAI</strong><span>Chat content may be sent without asking on each turn.</span></span>
+          </label>
+          <p id="status" role="status" aria-live="polite"></p>
+          <div class="footer-actions">
+            <span id="change-state">Loading settings…</span>
+            <button id="retry-load" class="secondary-button" type="button" hidden>Try again</button>
+            <button id="reset-settings" class="secondary-button" type="button" disabled>Reset</button>
+            <button id="save-settings" class="primary-button" type="submit" disabled>Save settings</button>
+          </div>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+</body>
+</html>

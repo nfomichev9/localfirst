@@ -34,6 +34,34 @@ def initialize(db):
         CREATE INDEX IF NOT EXISTS inference_time_model ON inference_attempts(timestamp,model);
         INSERT OR IGNORE INTO schema_migrations(version) VALUES (1);
     ''')
+    versions = {row[0] for row in db.execute('SELECT version FROM schema_migrations')}
+    if 2 not in versions:
+        # SQLite cannot relax NOT NULL in place. Rebuild atomically, retaining every
+        # original column and row; Lab operations have no chat conversation.
+        db.executescript('''BEGIN IMMEDIATE;
+            CREATE TABLE inference_attempts_v2 (
+                request_id TEXT PRIMARY KEY,
+                conversation_id TEXT REFERENCES conversations(id),
+                message_id INTEGER UNIQUE REFERENCES messages(id),
+                timestamp TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                provider TEXT NOT NULL, model TEXT NOT NULL,
+                execution_location TEXT NOT NULL CHECK(execution_location IN ('local','cloud')),
+                routing_mode TEXT NOT NULL DEFAULT 'local_only',
+                task_id TEXT, benchmark_run_id TEXT,
+                input_tokens INTEGER, output_tokens INTEGER,
+                latency_ms REAL, ttft_ms REAL, generation_duration_ms REAL,
+                tokens_per_second REAL, external_api_cost REAL,
+                status TEXT NOT NULL CHECK(status IN ('running','success','error','cancelled')),
+                feedback INTEGER CHECK(feedback IN (-1,1)),
+                purpose TEXT NOT NULL DEFAULT 'chat' CHECK(purpose IN ('chat','lab_prepare','lab_run')),
+                CHECK(input_tokens IS NULL OR input_tokens >= 0),
+                CHECK(output_tokens IS NULL OR output_tokens >= 0));
+            INSERT INTO inference_attempts_v2 SELECT *, 'chat' FROM inference_attempts;
+            DROP TABLE inference_attempts;
+            ALTER TABLE inference_attempts_v2 RENAME TO inference_attempts;
+            CREATE INDEX inference_time_model ON inference_attempts(timestamp,model);
+            INSERT INTO schema_migrations(version) VALUES (2);
+            COMMIT;''')
     db.execute("UPDATE inference_attempts SET status='cancelled' WHERE status='running'")
 
 
@@ -41,15 +69,17 @@ class Telemetry:
     def __init__(self, storage):
         self.storage = storage
 
-    def start(self, cid, model, provider='ollama', location='local', cost=None):
+    def start(self, cid, model, provider='ollama', location='local', cost=None, purpose='chat', task_id=None, run_id=None, routing_mode=None):
         if location == 'local':
             cost = 0
+        default_mode = 'local_only' if location == 'local' else 'cloud_only'
+        mode = default_mode if routing_mode in (None, 'always_local') else routing_mode
         rid = str(uuid4())
         with self.storage.connect() as db:
             db.execute('''INSERT INTO inference_attempts
-                (request_id,conversation_id,model,provider,execution_location,external_api_cost,routing_mode,status)
-                VALUES (?,?,?,?,?,?,?,?)''',
-                (rid, cid, model, provider, location, cost, 'local_only' if location == 'local' else 'cloud_only', 'running'))
+                (request_id,conversation_id,model,provider,execution_location,external_api_cost,routing_mode,status,purpose,task_id,benchmark_run_id)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)''',
+                (rid, cid, model, provider, location, cost, mode, 'running', purpose, task_id, run_id))
         return rid
 
     def attach(self, rid, mid):
