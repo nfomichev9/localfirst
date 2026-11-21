@@ -752,3 +752,16 @@ Limitations: excerpts are not full-page reading; indexed information can lag or
 conflict, and local-model synthesis can still be wrong. The public provider can
 rate-limit requests or change markup. A dedicated search API can later replace the
 small search adapter without changing the chat UI or local inference pipeline.
+
+## 2026-11-20 — Next session priorities
+
+User set two priorities for tomorrow, November 21:
+1. Pull the repo onto their older MacBook and try local models there. Inspect actual
+   chip/RAM and measure setup friction, memory use, first-token time, generation
+   speed and answer quality before selecting models or making performance claims.
+2. Clean up the product UI into a coherent, clean, sleek, easy-to-use and powerful
+   workspace with the polish of frontier chat products. Long-term positioning is
+   corporate-focused; product usability remains the immediate priority.
+
+Saved this agenda at the top of PROJECT_PLAN.md. No implementation, downloads,
+remote-machine setup, scheduling or business/admin expansion performed in this turn.

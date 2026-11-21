@@ -4,6 +4,19 @@
 
 > Next: make the existing product comfortable for a week of personal daily use, then review real friction before business work. [ARCHITECTURE.md](ARCHITECTURE.md) defines later packaging/onboarding: at most five clicks, under one minute excluding downloads. The browser/Python setup below remains the current implementation.
 
+## Next session — November 21, 2026
+
+| Priority | Work | What we want to learn or achieve |
+| --- | --- | --- |
+| 1. MacBook trial | Pull the repo onto the user's older MacBook, check its chip/RAM, get the app running and try suitable local models. | Validate setup on a second machine and find a useful balance of answer quality, memory use, first-token time and generation speed. Record actual measurements before choosing defaults. |
+| 2. Product UI polish | Review the current chat, composer, navigation, sources and Settings as one workspace, then improve their visual consistency and interaction. | A clean, sleek, easy-to-use and powerful work environment with the polish expected from frontier chat products. Keep everyday controls obvious and secondary details accessible without clutter. |
+
+Long-term product direction: a corporate-focused AI workspace built around local
+inference and selective frontier help. The immediate work is the product experience;
+marketing, billing and customer/internal admin remain deferred. Today’s implementation
+already includes PDF text uploads, opt-in web search and optional OpenAI handoff.
+The original MVP milestones below are implementation history, not the current task list.
+
 **Status:** Ready to implement  
 **Machine:** Apple M4 Mac mini, 16 GB unified memory  
 **Priority:** Make local chat stable before introducing paid cloud inference or routing  
