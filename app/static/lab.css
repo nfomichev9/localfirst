@@ -1,90 +1,70 @@
-.lab-page {
-  --paper: #fffdf8;
-  --line: #dddcd0;
-  --ink: #262c23;
-  --muted: #5b6558;
-  --accent: #315d49;
-  color: var(--ink);
-  background: #f1f0e9;
-}
 .lab-page a { color: var(--accent); }
-.lab-page .lab-header {
-  height: 62px;
-  padding: 0 max(24px, calc((100% - 1200px) / 2));
-  background: var(--paper);
-}
-.lab-header nav { display: flex; justify-content: end; gap: 20px; }
-.lab-header nav a { padding: 8px 4px; text-decoration: none; }
-.lab-header nav a:hover { text-decoration: underline; }
+.lab-page .workspace-header nav a { color: var(--muted); }
+.lab-page .workspace-header nav a:is(:hover, [aria-current="page"]), .lab-page .workspace-header .brand { color: var(--text); }
 
-.lab-content { overflow: auto; width: 100%; min-height: 0; padding: 32px max(24px, calc((100% - 1200px) / 2)) 64px; }
-.lab-heading, .lab-section-top, .lab-detail .section-heading {
+.lab-section-top, .lab-detail .section-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
-.lab-heading { margin-bottom: 24px; }
-.lab-heading h1 { margin: 0; font-size: clamp(27px, 5vw, 48px); font-weight: 650; letter-spacing: -.045em; }
-.lab-board { display: grid; grid-template-columns: minmax(205px, 260px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.lab-board { display: grid; grid-template-columns: minmax(205px, 252px) minmax(0, 1fr); gap: 18px; align-items: start; }
 .lab-detail { min-width: 0; }
-.lab-panel, .chat-inbox { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; }
-.lab-panel { padding: 24px; }
+.lab-panel, .chat-inbox { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--panel-radius); }
+.lab-panel { padding: 20px; }
 .chat-inbox { padding: 12px; }
 .lab-page h2 { margin: 0; font-size: 15px; }
 .chat-inbox .lab-section-top { padding: 2px 4px 10px; }
 
 #chat-turns { display: grid; gap: 4px; max-height: 470px; overflow: auto; padding: 4px; }
 .lab-page .chat-turn { display: block; width: 100%; text-align: left; border-color: transparent; }
-.lab-page .chat-turn[aria-current="true"] { background: #e3ede4; border-color: #bdcfbe; }
+.lab-page .chat-turn[aria-current="true"] { background: #34302a; border-color: #6b5540; }
 .chat-turn strong, .chat-turn small { display: block; }
 .chat-turn strong { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
 .chat-turn small { margin-top: 4px; color: var(--muted); }
 .saved-experiments { margin: 12px 4px 0; border-top: 1px solid var(--line); }
 .lab-page #task-list { max-height: 200px; }
-.lab-page #task-list button { color: var(--ink); text-align: left; }
-.lab-page #task-list button.active { background: #e3ede4; }
+.lab-page #task-list button { color: var(--text); text-align: left; }
+.lab-page #task-list button.active { background: #34302a; }
 .lab-page .lab-mobile-nav { display: none; }
 
 .lab-report { padding: 0; overflow: hidden; }
-.report-request, .report-answer, .report-details { padding: 22px 26px; }
+.report-request, .report-answer, .report-details { padding: 20px 22px; }
 .report-request .lab-request { font-size: clamp(18px, 2.5vw, 26px); letter-spacing: -.02em; margin: 8px 0; }
 .report-request .lab-note { margin: 0; }
-.report-summary { display: grid; grid-template-columns: 1fr 1fr; background: #e7eee6; border-block: 1px solid #d4dfd3; }
-.report-summary section { min-width: 0; padding: 18px 26px; }
-.report-summary section + section { border-left: 1px solid #d4dfd3; }
+.report-summary { display: grid; grid-template-columns: 1fr 1fr; background: var(--rail); border-block: 1px solid var(--line); }
+.report-summary section { min-width: 0; padding: 16px 22px; }
+.report-summary section + section { border-left: 1px solid var(--line); }
 .report-summary h2, .report-request h2, .report-answer h2 { font-size: 13px; color: var(--muted); }
 .report-summary strong { display: block; margin-top: 7px; font-size: 19px; overflow-wrap: anywhere; }
 .report-summary p { margin: 5px 0 0; }
 .report-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .report-answer .message-content, .lab-trial .message-content { margin-top: 10px; line-height: 1.7; font-size: 15px; white-space: normal; }
-.lab-page .message-content pre { background: #202821; color: #e8eee7; }
-.lab-page .message-content code:not(pre code) { color: #2c4737; background: #edf0e8; }
-.lab-page .message-content th { background: #e7eee6; color: var(--ink); }
 .report-details { padding-block: 6px 12px; border-top: 1px solid var(--line); }
 
 .lab-page button, .lab-page input:not([type=checkbox]), .lab-page select, .lab-page textarea {
-  border: 1px solid #bfc6b9;
+  border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--surface);
+  color: var(--text);
   font-size: 13px;
 }
 .lab-page button { padding: 7px 10px; }
-.lab-page button:hover:not(:disabled) { background: #ecf0e8; }
-.lab-page .lab-primary { color: white; background: var(--accent); border-color: var(--accent); }
-.lab-page .lab-primary:hover:not(:disabled) { color: white; background: #214b38; }
+.lab-heading button { white-space: nowrap; min-height: 35px; }
+.lab-page button:hover:not(:disabled) { background: var(--raised); }
+.lab-page .lab-primary { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.lab-page .lab-primary:hover:not(:disabled) { color: var(--accent-ink); background: #f4d09e; }
 .lab-page label { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; font-size: 12px; }
 .lab-page input:not([type=checkbox]), .lab-page select, .lab-page textarea { width: 100%; max-width: 100%; padding: 8px; line-height: 1.5; }
 .lab-page textarea { resize: vertical; min-height: 50px; max-height: none; }
 .lab-page textarea:focus-visible { outline: 2px solid var(--accent); }
 .lab-page .lab-confirm { flex-direction: row; align-items: start; }
 .lab-confirm input { accent-color: var(--accent); }
-.lab-page summary { cursor: pointer; color: var(--accent); margin-block: 10px; }
+.lab-page summary { cursor: pointer; color: #d7d8df; margin-block: 10px; }
 .lab-note, .lab-empty, .lab-metrics { color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .lab-request, .lab-input { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
-.lab-input { font-size: 12px; background: #eeefe7; padding: 12px; border-radius: 6px; max-height: 320px; overflow: auto; }
-.lab-error, #lab-status[data-error="true"] { color: #8d382a; }
+.lab-input { font-size: 12px; background: var(--rail); padding: 12px; border-radius: 6px; max-height: 320px; overflow: auto; }
+.lab-error, #lab-status[data-error="true"] { color: #efb298; }
 #lab-status { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
 .lab-detail .section-heading { margin: 0 0 10px; }
 .lab-detail .section-heading span { color: var(--muted); }
@@ -92,7 +72,7 @@
 .lab-trial h3, .lab-trial h4 { margin: 0 0 6px; }
 .lab-trial .lab-request { margin-top: 4px; }
 .lab-trial .usage-link { padding: 0; }
-.lab-trial .report-summary { margin: 16px -24px; }
+.lab-trial .report-summary { margin: 16px -20px; }
 .lab-trial .report-summary p { font-size: 13px; }
 .lab-verdict { color: var(--accent); font-weight: 650; }
 .trial-review { border-top: 1px solid var(--line); margin-top: 16px; }
@@ -100,10 +80,9 @@
 .lab-actions, .example-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 
 @media (max-width: 760px) {
-  .lab-content { padding: 20px 14px 40px; }
   .lab-board { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  #chat-turns { display: flex; max-height: none; overflow-x: auto; }
-  .lab-page .chat-turn { flex: 0 0 175px; background: #f5f5ee; }
+  #chat-turns { display: flex; max-height: none; overflow-x: auto; scroll-snap-type: x proximity; }
+  .lab-page .chat-turn { flex: 0 0 175px; background: var(--rail); scroll-snap-align: start; }
   .lab-page #task-list { display: none; }
   .lab-page .lab-mobile-nav { display: flex; }
   .report-request, .report-answer, .report-details, .report-summary section { padding-inline: 14px; }

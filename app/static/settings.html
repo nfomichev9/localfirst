@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>Settings · LocalFirst</title>
-  <link rel="stylesheet" href="/static/settings.css?v=3">
-  <script src="/static/settings.js?v=3" defer></script>
+  <link rel="icon" href="/static/owl.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/settings.css?v=6">
+  <script src="/static/display-preferences.js" defer></script>
+  <script src="/static/settings.js?v=5" defer></script>
 </head>
 <body>
   <dialog id="settings-dialog" aria-labelledby="settings-title">
@@ -23,6 +26,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8H5l-3 2v-10a9 9 0 0 1 18 0Z"/><path d="M8 9h8M8 13h5"/></svg>
             Chat
           </button>
+          <button id="display-tab" class="settings-tab" type="button" role="tab" aria-selected="false" aria-controls="display-panel" tabindex="-1" data-section="display">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+            Display
+          </button>
           <button id="spending-tab" class="settings-tab" type="button" role="tab" aria-selected="false" aria-controls="spending-panel" tabindex="-1" data-section="spending">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M9 15v-4M14 15V7M19 15v-6"/></svg>
             Spending
@@ -30,7 +37,7 @@
         </div>
         <div class="sidebar-bottom">
           <a href="/usage">Usage &amp; analytics <span aria-hidden="true">↗</span></a>
-          <span class="local-caption"><span class="local-mark" aria-hidden="true">L</span> LocalFirst</span>
+          <span class="local-caption"><img src="/static/owl.svg" alt="" width="22" height="22"> LocalFirst</span>
         </div>
       </aside>
       <form id="settings" novalidate aria-busy="true">
@@ -86,6 +93,25 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
               <p><strong>PDF conversations stay local.</strong> Your PDFs are read on this computer, regardless of the response mode.</p>
             </div>
+          </section>
+          <section id="display-panel" role="tabpanel" aria-labelledby="display-tab" hidden>
+            <div class="section-heading">
+              <h2>Reply details</h2>
+              <p>Choose what appears under replies in this browser.</p>
+            </div>
+            <label class="setting-row reply-setting">
+              <span class="setting-copy"><strong>Model and provider</strong><small>Which model answered and where it ran.</small></span>
+              <input type="checkbox" role="switch" data-reply-detail="model" aria-label="Model and provider">
+            </label>
+            <label class="setting-row reply-setting">
+              <span class="setting-copy"><strong>Response timing</strong><small>Total time, time to first token, and generation speed.</small></span>
+              <input type="checkbox" role="switch" data-reply-detail="timing" aria-label="Response timing">
+            </label>
+            <label class="setting-row reply-setting">
+              <span class="setting-copy"><strong>Token counts</strong><small>Input and output tokens.</small></span>
+              <input type="checkbox" role="switch" data-reply-detail="tokens" aria-label="Token counts">
+            </label>
+            <p id="display-status" class="section-note" role="status"></p>
           </section>
           <section id="spending-panel" role="tabpanel" aria-labelledby="spending-tab" hidden>
             <div class="section-heading">

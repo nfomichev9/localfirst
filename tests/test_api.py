@@ -93,8 +93,10 @@ def test_home_settings_link_loads_current_assets_and_revalidates_cache(tmp_path)
         assert 'id="settings-dialog"' in settings.text
         assets = References()
         assets.feed(settings.text)
-        assert len(assets.urls[:2]) == 2
-        for url in assets.urls[:2]:
+        settings_assets = [url for url in assets.urls if url.split('?')[0] in
+                           ('/static/settings.css', '/static/settings.js')]
+        assert len(settings_assets) == 2
+        for url in settings_assets:
             assert '?v=' in url
             response = client.get(url)
             assert response.status_code == 200
@@ -356,7 +358,23 @@ def test_gemma_preferred_only_when_installed_and_explicit_selection_preserved(tm
         assert send(client, cid, model='gemma4:missing').status_code == 400
 
 
-@pytest.mark.parametrize('model,thinking', [('gemma4:e2b', False), ('llama3.2:3b', None)])
+def test_gemma3_selected_when_gemma4_is_absent(tmp_path):
+    with client_for(tmp_path) as (client, fake):
+        async def installed():
+            return ['llama3.2:3b', 'gemma3:1b']
+
+        fake.models = installed
+        models = client.get('/api/models').json()
+        assert models['default'] == 'gemma3:1b'
+        assert models['labels']['gemma3:1b'] == 'Gemma 3 1B'
+        result = packets(send(client, create(client)))
+        assert fake.requests[-1][0] == 'gemma3:1b'
+        assert result[-1]['telemetry']['model'] == 'gemma3:1b'
+
+
+@pytest.mark.parametrize('model,thinking', [
+    ('gemma4:e2b', False), ('gemma3:1b', None), ('llama3.2:3b', None),
+])
 async def test_gemma_lightweight_thinking_policy(model, thinking):
     def handler(request):
         payload = json.loads(request.content)

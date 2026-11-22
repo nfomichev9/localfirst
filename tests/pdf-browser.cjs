@@ -50,8 +50,9 @@ module.exports = async function(browser, base) {
     assert.match(await page.locator('#pdf-name').innerText(), /dropped.pdf/);
     await page.locator('#pdf-file').setInputFiles({name:'notes.pptx', mimeType:'application/octet-stream', buffer:Buffer.from('invalid')});
     await page.getByText('Choose a PDF file (.pdf).', {exact:true}).waitFor();
+    const nextReply = page.locator('.assistant').nth(await page.locator('.assistant').count());
     await page.locator('#prompt').fill('__pdf_slow__'); await page.locator('#send').click();
-    await page.locator('.assistant').last().getByText('Generating…', {exact:true}).waitFor();
+    await nextReply.locator('.message-content:not(:empty)').waitFor();
     await page.getByRole('button', {name:'Stop', exact:true}).click();
     await page.waitForFunction(() => !document.querySelector('#send').hidden);
     assert.match(await page.locator('.assistant').last().innerText(), /Stopped/);

@@ -28,18 +28,21 @@ module.exports = async function(browser, base) {
   const paint = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   try {
     await page.goto(base + '/');
+    await page.locator('#workspace summary').click();
     await page.getByRole('link', {name:'Settings', exact:true}).click();
     assert.equal(new URL(page.url()).pathname, '/settings');
     await ready();
     assert.ok(await page.locator('#settings-dialog').evaluate(element =>
       getComputedStyle(element).borderRadius === '16px'), 'Settings stylesheet loaded through home navigation');
-    assert.equal(await page.getByRole('tab').count(), 2);
+    assert.equal(await page.getByRole('tab').count(), 3);
     assert.equal(await page.locator('#mode').inputValue(), 'always_local');
     assert.ok(await page.getByRole('button', {name:'Save settings', exact:true}).isDisabled());
     assert.ok(await page.locator('#consent').isHidden());
     assert.equal(await page.locator('#readiness').innerText(), 'Configured');
     await page.screenshot({path:'test-results/settings-chat-desktop.png', fullPage:true});
     await page.getByRole('tab', {name:'Chat', exact:true}).focus();
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.getByRole('tab', {name:'Display', exact:true}).getAttribute('aria-selected'), 'true');
     await page.keyboard.press('ArrowDown');
     assert.equal(await page.getByRole('tab', {name:'Spending', exact:true}).getAttribute('aria-selected'), 'true');
     assert.equal(await page.locator('#today-usage').innerText(), '$0.1200');

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; worker-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>LocalFirst — Native local chat</title>
+  <link rel="icon" href="./owl.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./theme.css">
+  <link rel="stylesheet" href="./chat.css">
+  <link rel="stylesheet" href="./browser.css">
+  <script src="./marked.min.js" defer></script>
+  <script src="./purify.min.js" defer></script>
+  <script src="./highlight.min.js" defer></script>
+  <script src="./markdown.js" defer></script>
+  <script src="./streaming.js" defer></script>
+  <script src="./display-preferences.js" defer></script>
+  <script src="./native.js" type="module"></script>
+</head>
+<body class="chat-page">
+  <main id="startup-screen" aria-busy="true">
+    <header class="browser-header">
+      <a class="brand" href="./"><img src="./owl.svg" alt="" width="28" height="28"> LocalFirst</a>
+    </header>
+    <div class="startup-content">
+      <img src="./owl.svg" alt="" width="48" height="48">
+      <p id="startup-status" role="status">Opening LocalFirst…</p>
+    </div>
+  </main>
+  <main id="setup-screen" hidden>
+    <header class="browser-header">
+      <a class="brand" href="./"><img src="./owl.svg" alt="" width="28" height="28"> LocalFirst</a>
+      <a id="back-to-chat" href="./" hidden>Back to chat</a>
+    </header>
+    <div class="setup-page">
+      <section class="setup" aria-labelledby="setup-title">
+        <img src="./owl.svg" alt="" class="setup-owl" width="48" height="48">
+        <h1 id="setup-title">Set up local chat</h1>
+        <p class="setup-intro">Choose the folder containing your Gemma 3 270M Instruct GGUF. LocalFirst loads the file directly from that folder.</p>
+        <form id="model-form">
+          <button class="setup-button" id="choose-folder" type="button">Choose folder…</button>
+          <label for="folder-path">Or paste a folder path</label>
+          <div class="folder-row">
+            <input id="folder-path" type="text" required spellcheck="false" autocomplete="off" placeholder="/Users/you/Models/Gemma">
+            <button class="setup-button" id="check-folder" type="submit">Find models</button>
+          </div>
+        </form>
+        <div id="model-options" hidden>
+          <label for="model-file">Model file</label>
+          <select id="model-file"></select>
+          <button class="setup-button setup-primary" id="load-model" type="button">Load model</button>
+        </div>
+        <progress id="load-progress" aria-label="Loading model" hidden></progress>
+        <p id="setup-status" class="setup-note" role="status" hidden></p>
+      </section>
+    </div>
+  </main>
+  <div id="chat-screen" hidden><!-- shared chat --></div>
+  <!-- display settings -->
+</body>
+</html>

@@ -1,11 +1,9 @@
 :root {
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #ededed;
-  background: #131514;
+  color: var(--text);
+  background: var(--ink);
   font-size: 14px;
-  --muted: #a0a0a0;
-  --line: #363636;
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100dvh; }
@@ -15,7 +13,7 @@ button, a { color: inherit; }
 button { cursor: pointer; }
 button:disabled, input:disabled, select:disabled { opacity: .45; cursor: default; }
 button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible {
-  outline: 2px solid #b7c9ba;
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 [hidden] { display: none !important; }
@@ -26,30 +24,29 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   max-width: none;
   max-height: none;
   padding: 0;
-  border: 1px solid #393939;
+  border: 1px solid #3a3e47;
   border-radius: 16px;
   color: inherit;
-  background: #222;
+  background: var(--surface);
   box-shadow: 0 24px 100px #0007;
   overflow: hidden;
 }
-#settings-dialog::backdrop { background: #080a0966; }
+#settings-dialog::backdrop { background: #0a0b1066; }
 .dialog-header { height: 72px; padding: 0 22px 0 26px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
 .dialog-header h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.35px; }
 .close-button { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; text-decoration: none; color: #aaa; }
-.close-button:hover { color: #fff; background: #343434; }
+.close-button:hover { color: #fff; background: #303640; }
 .settings-layout { display: grid; grid-template-columns: 196px minmax(0, 1fr); height: calc(100% - 72px); }
-.settings-sidebar { display: flex; flex-direction: column; justify-content: space-between; padding: 16px 12px; background: #1c1c1c; }
+.settings-sidebar { display: flex; flex-direction: column; justify-content: space-between; padding: 16px 12px; background: #17191e; }
 .settings-tabs { display: flex; flex-direction: column; gap: 5px; }
 .settings-tab { display: flex; align-items: center; gap: 11px; width: 100%; padding: 12px; border: 0; border-radius: 8px; background: transparent; color: #b9b9b9; text-align: left; font-size: 13px; }
 .settings-tab svg { width: 18px; height: 18px; }
-.settings-tab:hover { color: #eee; background: #272727; }
-.settings-tab[aria-selected="true"] { color: #fff; background: #333; }
+.settings-tab:hover { color: #eee; background: #282c34; }
+.settings-tab[aria-selected="true"] { color: #fff; background: #303640; }
 .sidebar-bottom { display: grid; gap: 22px; padding: 12px 12px 6px; }
 .sidebar-bottom a { display: flex; align-items: center; justify-content: space-between; color: #aaa; text-decoration: none; font-size: 12px; }
 .sidebar-bottom a:hover { color: #eee; }
 .local-caption { display: flex; align-items: center; gap: 8px; color: #8e8e8e; font-size: 12px; }
-.local-mark { display: grid; place-items: center; width: 22px; height: 22px; color: #bdcdbf; border: 1px solid #444; border-radius: 6px; font-weight: 650; font-size: 12px; }
 #settings { display: flex; flex-direction: column; min-width: 0; min-height: 0; margin: 0; }
 .settings-content { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 30px 24px; }
 .section-heading { margin-bottom: 21px; }
@@ -60,7 +57,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .setting-copy label, .setting-copy h3 { display: block; margin: 0 0 7px; font-size: 13px; font-weight: 500; }
 .setting-copy p { max-width: 270px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .select-wrap { position: relative; flex: 0 0 auto; max-width: 48%; }
-.select-wrap select { width: 100%; max-width: 215px; appearance: none; color: #eee; background: #2c2c2c; border: 1px solid #454545; border-radius: 8px; padding: 10px 34px 10px 12px; font-size: 12px; cursor: pointer; text-overflow: ellipsis; }
+.select-wrap select { width: 100%; max-width: 215px; appearance: none; color: #eee; background: #292d35; border: 1px solid #3e4450; border-radius: 8px; padding: 10px 34px 10px 12px; font-size: 12px; cursor: pointer; text-overflow: ellipsis; }
 .select-wrap svg { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; pointer-events: none; color: #aaa; }
 .connection-value { display: grid; justify-items: end; gap: 7px; min-width: 0; flex-shrink: 0; max-width: 48%; }
 .connection-badge { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: #b5b5b5; font-size: 11px; }
@@ -69,12 +66,12 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .connection-badge[data-ready="true"]::before { background: #9cbaa2; }
 #frontier-model { color: #929292; font-size: 11px; overflow-wrap: anywhere; text-align: right; }
 .connection-button { background: transparent; color: #dedede; border: 1px solid #494949; border-radius: 7px; padding: 6px 10px; font-size: 11px; }
-.connection-button:hover { background: #333; }
-.connection-editor { margin-top: 18px; padding: 18px; border: 1px solid #454545; border-radius: 10px; background: #272727; }
+.connection-button:hover { background: #303640; }
+.connection-editor { margin-top: 18px; padding: 18px; border: 1px solid #3e4450; border-radius: 10px; background: #282c34; }
 .connection-editor h3 { margin: 0 0 8px; font-size: 14px; font-weight: 550; }
 .connection-editor p { color: #aaa; font-size: 12px; line-height: 1.6; margin: 8px 0 14px; }
 .connection-editor label { display: block; font-size: 12px; margin: 15px 0 8px; }
-.connection-editor input, .connection-editor select { display: block; width: 100%; color: #eee; background: #222; border: 1px solid #4a4a4a; border-radius: 7px; padding: 10px; font-size: 13px; }
+.connection-editor input, .connection-editor select { display: block; width: 100%; color: #eee; background: #202329; border: 1px solid #4a4a4a; border-radius: 7px; padding: 10px; font-size: 13px; }
 .connection-editor #key-storage-note { font-size: 11px; }
 .connection-editor a { color: #d6dfd8; text-decoration: none; }
 .connection-editor a:hover { text-decoration: underline; }
@@ -86,7 +83,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .privacy-note svg { width: 17px; height: 17px; margin-top: 2px; }
 .privacy-note p { margin: 0; font-size: 12px; line-height: 1.7; }
 .privacy-note strong { font-weight: 500; color: #babfbb; }
-.currency-input { display: flex; align-items: center; gap: 6px; flex-shrink: 0; color: #aaa; padding: 9px 10px; background: #2c2c2c; border: 1px solid #454545; border-radius: 8px; }
+.currency-input { display: flex; align-items: center; gap: 6px; flex-shrink: 0; color: #aaa; padding: 9px 10px; background: #292d35; border: 1px solid #3e4450; border-radius: 8px; }
 .currency-input:focus-within { border-color: #a8b8aa; }
 .currency-input input { width: 61px; min-width: 0; border: 0; outline: none; background: transparent; color: #eee; text-align: right; appearance: textfield; }
 .currency-input input::-webkit-inner-spin-button { appearance: none; }
@@ -105,12 +102,12 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 #change-state { flex: 1; color: #858585; font-size: 11px; line-height: 1.5; }
 #change-state[data-dirty="true"] { color: #c7c7c7; }
 .primary-button, .secondary-button { padding: 9px 13px; border-radius: 8px; font-size: 12px; font-weight: 500; white-space: nowrap; }
-.primary-button { background: #ececec; color: #222; border: 1px solid #ececec; }
-.primary-button:hover:not(:disabled) { background: #fff; }
+.primary-button { background: #e8bd80; color: #211d1b; border: 1px solid #e8bd80; }
+.primary-button:hover:not(:disabled) { background: #f4d09e; }
 .primary-button:disabled { opacity: .3; }
 .secondary-button { background: transparent; color: #ccc; border: 1px solid #494949; }
-.secondary-button:hover:not(:disabled) { background: #333; }
-#status { margin: 0 0 10px; color: #b8ccbc; font-size: 12px; line-height: 1.5; }
+.secondary-button:hover:not(:disabled) { background: #303640; }
+#status { margin: 0 0 10px; color: #e8bd80; font-size: 12px; line-height: 1.5; }
 #status:empty { display: none; }
 #status[data-error="true"] { color: #e8b5a7; }
 .consent-row { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; margin-bottom: 13px; background: #2a2a2a; border: 1px solid #414141; border-radius: 8px; cursor: pointer; }
@@ -122,7 +119,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   .dialog-header { height: 62px; padding: 0 16px 0 20px; }
   .dialog-header h1 { font-size: 18px; }
   .settings-layout { display: flex; flex-direction: column; height: calc(100% - 62px); }
-  .settings-sidebar { padding: 10px 14px; background: #222; border-bottom: 1px solid var(--line); }
+  .settings-sidebar { padding: 10px 14px; background: #202329; border-bottom: 1px solid var(--line); }
   .settings-tabs { flex-direction: row; gap: 8px; }
   .settings-tab { width: auto; flex: 1; padding: 10px 12px; justify-content: center; }
   .sidebar-bottom { display: none; }
@@ -137,4 +134,34 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   .footer-actions { gap: 6px; }
   .primary-button, .secondary-button { padding: 9px 10px; }
   #change-state { font-size: 10px; }
+}
+
+.reply-setting { cursor: pointer; }
+.reply-setting strong, .reply-setting small { display: block; }
+.reply-setting strong { color: #eeece8; font-size: 13px; font-weight: 550; }
+.reply-setting small { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.reply-setting input {
+  flex: none;
+  appearance: none;
+  width: 37px;
+  height: 22px;
+  margin: 0;
+  border: 1px solid #5f6470;
+  border-radius: 20px;
+  background: #333740;
+  cursor: pointer;
+}
+.reply-setting input::before {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 3px;
+  border-radius: 50%;
+  background: #ced0d6;
+}
+.reply-setting input:checked { background: #e8bd80; border-color: #e8bd80; }
+.reply-setting input:checked::before { transform: translateX(15px); background: #211d1b; }
+@media (max-width: 370px) {
+  .settings-tab { padding-inline: 7px; gap: 6px; }
 }

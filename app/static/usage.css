@@ -1,0 +1,76 @@
+.usage-heading { align-items: end; }
+.filters { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
+.filters label { display: grid; gap: 5px; color: var(--muted); font-size: 11px; }
+.filters select, .filters button {
+  min-height: 35px;
+  padding: 0 9px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.filters select { max-width: min(190px, 36vw); }
+.filters button { display: inline-flex; align-items: center; gap: 5px; }
+.filters button:hover { background: var(--raised); }
+.filters button svg { width: 16px; height: 16px; fill: none; stroke: var(--accent); stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+#usage-status { margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+#usage-status:empty, #usage-status[data-state="ready"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.stat-grid, .chart-grid { display: grid; gap: 10px; }
+.stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.chart-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stat-card, .chart-panel, .model-table {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--panel-radius);
+}
+.stat-card, .chart-panel { padding: 16px; }
+.stat-card div { color: var(--muted); font-size: 12px; }
+.stat-card strong { display: block; margin: 6px 0 4px; color: var(--text); font-size: clamp(21px, 3vw, 29px); font-weight: 550; letter-spacing: -.035em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat-card small { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.performance-grid .stat-card strong { font-size: clamp(19px, 2.6vw, 24px); }
+.analytics-section { margin-top: 26px; }
+.analytics-section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 9px; }
+.analytics-section-heading h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.analytics-section-heading p, .analytics-note { margin: 0; color: var(--muted); font-size: 12px; }
+.analytics-note { margin-top: 10px; line-height: 1.5; }
+
+.chart-panel h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.chart-panel p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+.chart-panel svg { display: block; width: 100%; margin-top: 7px; overflow: visible; }
+.chart-axis { stroke: #4a4e5a; fill: none; }
+.chart-label { fill: #b9bbc3; font-size: 11px; }
+.chart-local { fill: var(--accent); }
+.chart-cloud { fill: #aeafeb; }
+.chart-unknown { fill: #606573; }
+.chart-hit { fill: transparent; }
+.chart-point:is(:hover, :focus) .chart-hit { fill: #ffffff10; }
+.chart-point:focus { outline: none; }
+.chart-caption { min-height: 2.5em; line-height: 1.4; }
+.chart-legend { display: flex; gap: 10px; }
+.legend::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 2px; }
+.legend.local::before { background: var(--accent); }
+.legend.cloud::before { background: #aeafeb; }
+.chart-empty { min-height: 118px; display: grid; place-items: center; }
+
+.model-table { overflow: auto; scrollbar-width: thin; }
+.model-table:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.model-table table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; font-size: 12px; font-variant-numeric: tabular-nums; }
+.model-table :is(th, td) { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.model-table th { background: #252931; color: #dbdce2; font-weight: 550; }
+.model-table tbody tr:last-child td { border-bottom: 0; }
+.model-table td { color: #c3c5cf; }
+.model-table td:first-child { color: var(--text); }
+.analytics-method { margin-top: 15px; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.analytics-method summary { cursor: pointer; width: fit-content; color: #dbd9df; }
+.analytics-method p { max-width: 78ch; }
+@media (max-width: 775px) {
+  .usage-heading { align-items: start; flex-direction: column; }
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 535px) {
+  .chart-grid { grid-template-columns: 1fr; }
+  .stat-card, .chart-panel { padding: 13px; }
+}

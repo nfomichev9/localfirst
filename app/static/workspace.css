@@ -1,0 +1,71 @@
+.workspace-page {
+  color: var(--text);
+  background: var(--ink);
+  --page-gutter: clamp(16px, 4vw, 38px);
+  --page-width: 1220px;
+  --panel-radius: 12px;
+}
+.workspace-header {
+  padding: 0 max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
+  min-height: 60px;
+  height: auto;
+  background: var(--rail);
+}
+.workspace-header .brand {
+  width: fit-content;
+  flex: none;
+  gap: 9px;
+  font-size: 17px;
+  letter-spacing: -.4px;
+  font-weight: 650;
+}
+.workspace-header .brand img { display: block; }
+.workspace-header nav { display: flex; flex: none; align-items: center; gap: 4px; overflow: visible; }
+.workspace-header nav a {
+  padding: 7px 10px;
+  border-radius: 7px;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.workspace-header nav a:hover, .workspace-header nav a[aria-current="page"] { background: var(--raised); color: var(--text); }
+.workspace-content {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 32px max(var(--page-gutter), calc((100% - var(--page-width)) / 2)) 50px;
+  scrollbar-width: thin;
+}
+.workspace-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 25px;
+}
+.workspace-heading h1 {
+  margin: 0;
+  color: #f4eee5;
+  font: 400 clamp(30px, 4vw, 42px)/1.1 Georgia, 'Times New Roman', serif;
+  letter-spacing: -.045em;
+}
+.workspace-page .message-content a[href] { color: var(--accent); text-underline-offset: 3px; }
+.workspace-page .message-content pre { background: var(--rail); }
+.workspace-page .message-content :not(pre) > code { background: #292d37; }
+.workspace-page .message-content :is(th, td) { border-color: var(--line); }
+.workspace-page .message-content th { background: var(--raised); }
+.workspace-page .message-content blockquote { border-color: var(--accent); color: var(--muted); }
+.workspace-page summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.workspace-page select option { color: var(--text); background: var(--surface); }
+@media (max-width: 620px) {
+  .workspace-header { min-height: 53px; gap: 5px; }
+  .workspace-header .brand { gap: 7px; font-size: 15px; }
+  .workspace-header nav { gap: 1px; }
+  .workspace-header nav a { font-size: 12px; padding: 7px 8px; }
+  .workspace-content { padding-top: 22px; }
+}
+@media (max-width: 360px) {
+  .workspace-header nav a { padding-inline: 6px; }
+}

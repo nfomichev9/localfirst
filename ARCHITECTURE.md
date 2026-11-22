@@ -19,6 +19,11 @@ future boundaries without making them current tasks.
 The app extracts page text locally, retains it with chat, and reports excerpt coverage.
 Original-file archiving, OCR, other attachment types and web browsing remain separate.
 
+**November 22 Intel Mac pilot.** The [native local mode](docs/implementation/native-local-mode.md)
+serves the shared browser chat over loopback and keeps Gemma 3 270M resident in a
+launcher-owned llama.cpp process. Browser onboarding selects the user's GGUF folder
+and saves the model selection for subsequent launches.
+
 | Decision | Recommendation |
 | --- | --- |
 | What users install | One signed app managing its engine/runtime. No separate Python or Ollama setup. |
@@ -304,6 +309,7 @@ deterministic checks, not just a frontier judge's agreement.
 | Additional attachment types / folders | PDF text upload and existing context/permission boundaries | Explicit selected paths, scoped access/revocation, size limits, safe parsers, provenance and deletion; no blanket disk access. |
 | Recurring local worker | Engine, ledger, model lifecycle | Durable bounded jobs, checkpoints, idempotent actions, resource/power schedules and approval for external effects. Sleeping laptops are not 24/7 servers. |
 | Extension/API client | Same application services | Narrow authenticated interface and supported integration; no duplicate routing logic. |
+| Personal Mac inference host | Browser chat and native llama.cpp runtime | Deferred. Let the user's Mac mini run the model while their MacBook opens chat over an authenticated, encrypted home-network connection. Show which Mac is running inference and keep chat history in the client browser. |
 | Shared team machine | Provider/context contracts | Real multi-user isolation, scheduler, encrypted transport, quotas and tenant tests. Not just binding the prototype to a LAN address. |
 
 Local tokens still consume hardware, power and attention. Workers need bounded tasks;

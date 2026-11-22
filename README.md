@@ -6,7 +6,7 @@ Next milestone: use the existing product for everyday work for about a week and 
 
 Proposed product architecture: [ARCHITECTURE.md](ARCHITECTURE.md), with an executive summary, onboarding/hardware flow, system diagrams and staged desktop packaging plan. This describes future productization; setup below is the current development app.
 
-A local chat workspace for Ollama. FastAPI serves a dark, responsive HTML/CSS/vanilla-JavaScript interface; SQLite saves conversations on this machine. Cloud inference is opt-in from Settings. The app requires no frontend build, authentication, external analytics, or model downloads. Content-free inference telemetry stays in the same local SQLite database.
+Open [`127.0.0.1:8019`](http://127.0.0.1:8019/) to set up and use native Gemma chat in your browser. The [optional Ollama workspace](#original-ollama-workspace) provides cloud routing, Evaluation Lab, and SQLite history.
 
 PDF uploads are available in chat: use **+** or drag a PDF onto the conversation,
 then ask a question. Sending with no typed question requests a summary. PDFs are read
@@ -44,28 +44,50 @@ change markup; a dedicated search API can replace this small adapter later.
 
 ## Setup and launch (macOS)
 
-Requires Python 3.11+ and Ollama. Verified here with Python 3.13.2 with local Ollama models.
-
-In Terminal or VS Code's terminal:
+Install the Python 3.11+ dependencies from the repository root, then [launch native chat](#native-local-chat).
 
 ```sh
-cd /Users/nfomichev/Desktop/localfirst
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open **http://127.0.0.1:8000** in your browser. Keep this terminal running; press **Ctrl+C** to stop. Use one server worker. The environment and dependencies have already been created in this workspace, so subsequent launches only need:
+## Native local chat
+
+Native chat runs Gemma 3 270M Instruct on the Mac CPU with llama.cpp and serves the same chat interface in your browser. Keep the launcher running to retain the model in memory while you reload or close the tab. Setup requires Python, the browser build, a `llama-server` binary, and your own GGUF file. It runs without an account, the App Store, or Ollama.
+
+Use the Intel x64 archive on an Intel Mac and keep `llama-server` with the libraries from the archive. Place a Gemma 3 270M Instruct `.gguf` in a folder of your choice. [llama.cpp b12248 release](https://github.com/ggml-org/llama.cpp/releases/tag/b12248) · [Gemma 3 270M Instruct GGUF files](https://huggingface.co/ggml-org/gemma-3-270m-it-GGUF/tree/main)
+
+From the repository root with the [Python dependencies installed](#setup-and-launch-macos), build and run:
 
 ```sh
-cd /Users/nfomichev/Desktop/localfirst
+npm ci
+npm run build:browser
+.venv/bin/python -m native.serve \
+  --llama-server '/path/to/llama-server'
+```
+
+Open **http://127.0.0.1:8019/**, click **Choose folder**, and select the folder containing the GGUF. You can also paste a folder path. Select the GGUF and click **Load model**. The launcher remembers your selection in `data/native-model.json` and loads it on subsequent launches. Open **Workspace → Model setup** to choose another file. Existing native chat history, display preferences, and usage stay in your browser profile.
+
+An optional `--model-dir '/path/to/models'` and `--model 'your-file.gguf'` can override the saved selection at launch. Supply `--threads 2` to match the Intel benchmark. Press Ctrl+C in the launcher terminal to unload the model. Native chat and PDF extraction work offline. If you enable Search, only the message you submit goes to DuckDuckGo as a query. Gemma uses the returned excerpts to generate the reply locally.
+
+With a local GGUF and the browser assets built, run the native onboarding smoke test:
+
+```sh
+node tests/native-onboarding.cjs '/path/to/llama-server' '/path/to/gemma-3-270m-it.gguf'
+```
+
+See the [Intel Mac evaluation](docs/implementation/native-local-mode.md) for the measurements and reproduction steps.
+
+## Original Ollama workspace
+
+The original workspace is an optional launch for existing SQLite chats, cloud routing, or Evaluation Lab. Start `ollama serve` with your local model installed, then run this from the repository root and open `http://127.0.0.1:8000/`:
+
+```sh
 .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-**After pulling or editing backend code, restart Uvicorn, then refresh the browser.** Static files are read from disk immediately, but Python routes and database migrations load at server startup. An older running server can therefore show new Markdown while `/usage` returns 404 and new replies lack telemetry. Replies generated before the telemetry migration keep their original history but have no inference ledger records.
-
-Ollama must also be running. Open the Ollama app, or, if it isn't already serving, run `ollama serve` in a separate terminal. LocalFirst never starts the Ollama service or installs models. It connects only to `http://127.0.0.1:11434`; it ignores HTTP proxy environment variables.
+Use one server worker. Restart Uvicorn after Python changes and refresh the browser. For a small model on this Intel Mac, select `gemma3:270m` if installed.
 
 ## OpenAI routing and spending
 
@@ -123,17 +145,16 @@ The run command explicitly opts in to paid requests.
 
 ## Use
 
-- Select an installed model in the top bar. `gemma4:e2b` is preferred when installed and appears as **Lightweight · Gemma 4 E2B**. Llama remains selectable; on machines without Gemma the app initially selects Llama, or the first installed model. Requests never silently switch models after generation starts. The refresh button retries model discovery after an Ollama outage.
+- Select an installed model in the top bar. The initial selection is the first installed model in this preference order: `gemma4:e2b`, `gemma3:1b`, then `llama3.2:3b`. If none are installed, the first model returned by Ollama is selected. Requests never silently switch models after generation starts. The refresh button retries model discovery after an Ollama outage.
 - Type a prompt and press **Enter** or the arrow button. **Shift+Enter** adds a newline.
 - Use **Stop** to abort a response. The upstream stream closes; partial output is retained as incomplete and excluded from later model context.
 - Use **New conversation** to start fresh. Select a saved conversation in the sidebar to resume it, including after a server restart. The mobile menu opens the sidebar; Escape closes it.
 - The latest 12 completed messages plus the new prompt are sent as context. Earlier messages remain saved; a notice identifies omitted history. Failed/stopped assistant messages are excluded. There is no summarization.
-- Each reply shows the actual model reported by Ollama, request duration, and prompt/output token counts when provided. Missing counts show `—`. Duration is measured at the backend from request processing through model completion, including model discovery/loading, excluding browser rendering.
+- Open **Workspace → Settings → Display** to show model and provider, response timing, or token counts under completed replies. Each field is opt-in and saved in the current browser. Duration includes backend model discovery and loading.
 - Assistant Markdown renders while streaming and after reopening history: headings, emphasis, lists, inline/fenced code, highlighted common languages, tables, and links. Raw Markdown remains in SQLite. Rendering uses locally vendored Marked, DOMPurify, and Highlight.js; images and embedded media are excluded.
-- Expand the metrics under a reply for input/output counts, generation speed, and first-token time. Helpful / unhelpful feedback is optional and saved locally. Older replies show telemetry unavailable.
-- Open **Evaluation Lab** from the sidebar (or `/lab`) to define a task and success criteria, test the original prompt, request a local context check, and compare a reviewed prepared prompt. See the walkthrough below.
-- Open **Usage & analytics** from the sidebar (or `/usage`) for overview cards, model performance, and interactive daily request/token/cost charts. Filter by period/model; Refresh includes new activity.
-- Replies identify local generation and **$0 external API spend**. This does not include local hardware, electricity, or other compute costs.
+- Use the actions under a completed reply to copy its Markdown or leave feedback. Scroll up to read earlier messages during generation, then use **Jump to latest** to resume following the thread.
+- Open **Evaluation Lab** from **Workspace** (or `/lab`) to define a task and success criteria, test the original prompt, request a local context check, and compare a reviewed prepared prompt. See the walkthrough below.
+- Open **Usage & analytics** from **Workspace** (or `/usage`) for model performance, daily request and token charts, and external API spending.
 
 Gemma 4 requests use `think: false` for this lightweight chat trial, keeping the existing 4,096-token context and 2,048-token output limit. The app does not download models automatically. To install the selected model manually, use `ollama pull gemma4:e2b`, then restart LocalFirst after backend changes and refresh the browser.
 
@@ -177,7 +198,7 @@ Tests use temporary SQLite databases and mocked Ollama responses. They do not re
 Optional real integration smoke check (requires Ollama and an installed model; uses the app preference unless `--model` is supplied):
 
 ```sh
-.venv/bin/python tests/smoke_local.py --model gemma4:e2b
+.venv/bin/python tests/smoke_local.py --model gemma3:1b
 ```
 
 This starts a temporary server on a loopback port, uses a temporary database, tests real incremental responses, follow-up recall, server restart, and HTTP cancellation, then terminates its server. It does not modify your normal conversations or stop Ollama.

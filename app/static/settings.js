@@ -29,6 +29,7 @@ function showSection(section, focus = false) {
     tab.tabIndex = active ? 0 : -1;
     $(tab.getAttribute('aria-controls')).hidden = !active;
   });
+  document.querySelector('.settings-footer').hidden = selected.dataset.section === 'display';
   history.replaceState(null, '', '#' + selected.dataset.section);
   if (focus) selected.focus();
 }
@@ -49,6 +50,22 @@ mobile.addEventListener('change', orientTabs); orientTabs();
 dialog.addEventListener('cancel', event => { event.preventDefault(); location.assign(returnTo); });
 dialog.showModal();
 showSection(location.hash.slice(1));
+
+const replySwitches = [...document.querySelectorAll('[data-reply-detail]')];
+const replyDetails = readReplyDetails();
+for (const input of replySwitches) {
+  input.checked = replyDetails[input.dataset.replyDetail] === true;
+  input.addEventListener('change', () => {
+    const next = Object.fromEntries(replySwitches.map(control => [control.dataset.replyDetail, control.checked]));
+    try {
+      localStorage.setItem(replyDetailsKey, JSON.stringify(next));
+      $('display-status').textContent = 'Display preferences saved.';
+    } catch {
+      input.checked = !input.checked;
+      $('display-status').textContent = 'This browser could not save the display preference.';
+    }
+  });
+}
 
 function renderBudget() {
   const valid = budget && Number.isFinite(budget.reserved_or_charged);

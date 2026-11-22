@@ -22,6 +22,27 @@ module.exports = async function streamingChecks(browser, base) {
       } finally {window.requestAnimationFrame = request; window.cancelAnimationFrame = cancel;}
     });
     assert.deepEqual(buffering, {pendingFrames:1,beforeFrame:0,paints:['AB🌿','AB🌿 café'],remaining:0});
+    const reveal = await page.evaluate(() => {
+      const content = document.createElement('div');
+      content.className = 'message-content';
+      content.textContent = 'Existing text. New text.';
+      document.body.append(content);
+      const effect = createReplyReveal(content);
+      effect.fadeAppended('Existing text. ');
+      const animation = content.getAnimations()[0];
+      animation.currentTime = 20;
+      const early = getComputedStyle(content, '::highlight(reply-reveal)').color;
+      const range = [...CSS.highlights.get('reply-reveal')][0].toString();
+      animation.currentTime = 120;
+      const late = getComputedStyle(content, '::highlight(reply-reveal)').color;
+      effect.clear();
+      const cleared = !CSS.highlights.has('reply-reveal');
+      content.remove();
+      return {early, late, range, cleared};
+    });
+    assert.equal(reveal.range, 'New text.');
+    assert.notEqual(reveal.early, reveal.late, 'recent text fades as the animation advances');
+    assert.equal(reveal.cleared, true, 'completion clears the reveal without changing content');
     await page.evaluate(() => {
       const fixtures = [
         '# Heading\n\nA **bold** and *italic* paragraph with `code`.\n\n- One\n- Two\n\n| Name | Value |\n| --- | --- |\n| Local | Yes |\n\n```python\nprint("🌿")\n```',
@@ -54,7 +75,6 @@ module.exports = async function streamingChecks(browser, base) {
       const root = document.querySelector('.assistant .message-content');
       window.stableParagraph = root.querySelector('p');
       window.stableCode = root.querySelector('pre');
-      window.stableMetrics = document.querySelector('.assistant .metrics').firstChild;
       document.querySelector('#thread').scrollTop = 0;
       const range = document.createRange(); range.setStart(stableParagraph.firstChild, 0); range.setEnd(stableParagraph.firstChild, 6);
       getSelection().removeAllRanges(); getSelection().addRange(range);
@@ -63,10 +83,10 @@ module.exports = async function streamingChecks(browser, base) {
     const during = await page.evaluate(() => ({
       paragraph:stableParagraph === document.querySelector('.assistant .message-content p'),
       code:stableCode === document.querySelector('.assistant pre'),
-      metrics:stableMetrics === document.querySelector('.assistant .metrics').firstChild,
       selection:getSelection().toString(), top:document.querySelector('#thread').scrollTop
     }));
-    assert.deepEqual(during, {paragraph:true,code:true,metrics:true,selection:'Select',top:0});
+    assert.deepEqual(during, {paragraph:true,code:true,selection:'Select',top:0});
+    await page.getByRole('button', {name:'Jump to latest'}).waitFor();
     await page.waitForFunction(() => !document.querySelector('#send').hidden);
     const completed = await page.evaluate(async () => {
       const conversation = await (await fetch('/api/conversations/'+current)).json();
@@ -81,11 +101,13 @@ module.exports = async function streamingChecks(browser, base) {
     for (let i=0; i<30; i++) assert.equal(completed.raw.split(`Batch ${i} — café 🌿. `).length-1, 1);
     assert.ok(completed.raw.endsWith('**Complete.**'));
     assert.equal(completed.selection, 'Select'); assert.equal(completed.top, 0);
+    await page.getByRole('button', {name:'Jump to latest'}).click();
+    assert.ok(await page.locator('#thread').evaluate(el => el.scrollHeight-el.scrollTop-el.clientHeight) < 64);
     // Resume following by returning to the bottom, then verify a second long reply.
     await page.evaluate(() => getSelection().removeAllRanges());
     await page.locator('#new-chat').click();
     await page.locator('#prompt').fill('__streaming_stress__'); await page.locator('#send').click();
-    await page.waitForFunction(() => document.querySelector('.assistant .message-content')?.textContent.includes('Batch 4'));
+    await page.waitForFunction(() => /Batch (4|5|6)/.test(document.querySelector('.assistant .message-content')?.textContent));
     const following = await page.locator('#thread').evaluate(el => el.scrollHeight-el.scrollTop-el.clientHeight);
     assert.ok(following < 64, 'follows output when user stays at the bottom');
     await page.locator('#stop').click();
@@ -104,6 +126,10 @@ module.exports = async function streamingChecks(browser, base) {
     assert.match(await page.locator('.assistant .message-error').innerText(), /interrupted/);
     await page.emulateMedia({reducedMotion:'reduce'});
     assert.equal(await page.locator('.assistant').evaluate(el => getComputedStyle(el).animationName), 'none');
+    assert.equal(await page.locator('.assistant .message-content').evaluate(el => {
+      createReplyReveal(el).fadeAppended('');
+      return CSS.highlights.has('reply-reveal');
+    }), false);
     await page.setViewportSize({width:390,height:844});
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     const model = page.getByLabel('Model for retry');
@@ -126,11 +152,12 @@ module.exports = async function streamingChecks(browser, base) {
     assert.equal(await page.locator('#prompt').inputValue(), 'Unsent draft');
     assert.equal(await page.locator('.message.user').count(), 1);
     assert.equal(await page.locator('.message.assistant').count(), 2);
-    assert.match(await page.locator('.assistant').last().locator('.message-heading').innerText(), /RETRY/);
-    assert.match(await page.locator('.assistant').last().locator('.metrics summary').innerText(), /second:local.*success/);
+    assert.equal(await page.locator('.assistant').last().getAttribute('aria-label'), 'LocalFirst retry');
     const retryConversation = await page.evaluate(() => current);
+    const saved = await (await page.request.get(base+'/api/conversations/'+retryConversation)).json();
+    assert.equal(saved.messages.at(-1).telemetry.model, 'second:local');
     await page.goto(base+'/?conversation='+retryConversation);
-    await page.locator('.assistant').last().locator('.metrics summary').waitFor();
+    await page.locator('.assistant').last().getByRole('button', {name:'Copy reply'}).waitFor();
     assert.equal(await page.locator('.message.assistant').count(), 2);
     assert.match(await page.locator('.assistant').first().locator('.message-error').innerText(), /interrupted/);
     console.log('PASS: streaming stability, cancellation, error partials, retry model switching, offline and empty catalogs, persistence, mobile chat');

@@ -1,0 +1,12 @@
+:root {
+  color-scheme: dark;
+  --ink: #17191e;
+  --rail: #111317;
+  --surface: #202329;
+  --raised: #282c33;
+  --text: #eeece8;
+  --muted: #a7aab4;
+  --line: #30343c;
+  --accent: #e8bd80;
+  --accent-ink: #211d1b;
+}

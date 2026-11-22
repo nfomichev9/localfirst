@@ -21,13 +21,17 @@ function svgElement(tag, attrs = {}) {
 function chart(id, rows, kind) {
   const host = $(id); host.replaceChildren();
   if (!rows.length) { const p = document.createElement('p'); p.className = 'chart-empty'; p.textContent = 'No activity in this period'; host.append(p); return; }
-  const svg = svgElement('svg', {viewBox:'0 0 600 230', role:'img', 'aria-label':`${kind} by day in UTC`});
+  const svg = svgElement('svg', {viewBox:'0 0 360 154', role:'group', 'aria-label':`${kind} by day in UTC`});
   const values = rows.map(r => kind === 'Requests' ? r.requests : kind === 'Tokens' ? (r.input_tokens == null && r.output_tokens == null ? null : (r.input_tokens ?? 0)+(r.output_tokens ?? 0)) : r.external_api_cost);
   const observedMax = Math.max(0, ...values.filter(v => v != null));
-  const max = Math.max(1, observedMax);
-  const step = 540/rows.length, width = Math.max(1, step*.65);
-  const axis = svgElement('path', {d:'M40 20V190H585', class:'chart-axis'}); svg.append(axis);
-  const top = svgElement('text', {x:4, y:20, class:'chart-label'}); top.textContent = kind === 'API costs' ? money(observedMax) : num(observedMax); svg.append(top);
+  const max = observedMax || 1;
+  const left = 54, right = 353, top = 17, baseline = 128;
+  const plot = baseline - top;
+  const step = (right-left)/rows.length, width = Math.min(42, step*.66);
+  svg.append(svgElement('path', {d:`M${left} ${top}V${baseline}H${right}`, class:'chart-axis'}));
+  const scale = svgElement('text', {x:left - 6, y:top + 4, 'text-anchor':'end', class:'chart-label'});
+  scale.textContent = kind === 'API costs' ? money(observedMax) : new Intl.NumberFormat(undefined, {notation:'compact'}).format(observedMax);
+  svg.append(scale);
   rows.forEach((r, i) => {
     const value = values[i];
     const group = svgElement('g', {tabindex:'0', class:'chart-point'});
@@ -35,30 +39,41 @@ function chart(id, rows, kind) {
     const title = svgElement('title'); title.textContent = `${r.date}: ${description}`; group.append(title);
     group.setAttribute('aria-label', title.textContent);
     // Full-height transparent hit target makes zero/unknown values inspectable.
-    group.append(svgElement('rect', {x:40+i*step,y:20,width:step,height:170,class:'chart-hit'}));
-    const height = (value ?? 0)/max*160;
+    const x = left + i*step;
+    const barX = x + (step-width)/2;
+    group.append(svgElement('rect', {x,y:top,width:step,height:plot,class:'chart-hit'}));
+    const height = (value ?? 0)/max*plot;
     if (kind === 'Requests') {
-      const localHeight = r.local_requests/max*160;
-      group.append(svgElement('rect', {x:40+i*step+step*.15,y:190-localHeight,width,height:Math.max(1,localHeight),class:'chart-local'}));
-      if (r.cloud_requests) group.append(svgElement('rect', {x:40+i*step+step*.15,y:190-height,width,height:height-localHeight,class:'chart-cloud'}));
-    } else group.append(svgElement('rect', {x:40+i*step+step*.15,y:190-height,width,height:Math.max(1,height),class:value == null ? 'chart-unknown' : 'chart-local'}));
+      const localHeight = r.local_requests/max*plot;
+      const cloudHeight = r.cloud_requests/max*plot;
+      if (localHeight) group.append(svgElement('rect', {x:barX,y:baseline-localHeight,width,height:localHeight,class:'chart-local'}));
+      if (cloudHeight) group.append(svgElement('rect', {x:barX,y:baseline-localHeight-cloudHeight,width,height:cloudHeight,class:'chart-cloud'}));
+    } else if (height || value == null) {
+      const barHeight = value == null ? 2 : height;
+      group.append(svgElement('rect', {x:barX,y:baseline-barHeight,width,height:barHeight,class:value == null ? 'chart-unknown' : 'chart-local'}));
+    }
     group.addEventListener('mouseenter', () => caption.textContent = title.textContent);
     group.addEventListener('focus', () => caption.textContent = title.textContent);
+    group.addEventListener('click', () => caption.textContent = title.textContent);
     svg.append(group);
   });
   (rows.length === 1 ? [0] : [0, rows.length-1]).forEach((i, k) => {
-    const label = svgElement('text', {x:k ? 585 : 40,y:218,'text-anchor':k?'end':'start',class:'chart-label'});
+    const x = rows.length === 1 ? (left+right)/2 : k ? right : left;
+    const anchor = rows.length === 1 ? 'middle' : k ? 'end' : 'start';
+    const label = svgElement('text', {x,y:148,'text-anchor':anchor,class:'chart-label'});
     label.textContent = rows[i].date; svg.append(label);
   });
-  const caption = document.createElement('p'); caption.className = 'chart-caption'; caption.textContent = 'Hover or focus a bar to inspect the day';
+  const caption = document.createElement('p'); caption.className = 'chart-caption';
   host.append(svg, caption);
 }
 let sequence = 0;
 async function loadUsage() {
   const version = ++sequence;
+  $('usage-status').dataset.state = 'loading';
   $('usage-status').textContent = 'Loading local usage…';
   try {
-    const response = await fetch(`/api/usage?days=${$('period').value}&model=${encodeURIComponent($('filter-model').value)}`);
+    const request = window.localfirstBrowser?.request || fetch;
+    const response = await request(`/api/usage?days=${$('period').value}&model=${encodeURIComponent($('filter-model').value)}`);
     if (!response.ok) throw new Error(`Usage could not load (${response.status}).`);
     const data = await response.json(); if (version !== sequence) return;
     const selection = $('filter-model').value;
@@ -66,10 +81,10 @@ async function loadUsage() {
     $('filter-model').value = selection;
     const o = data.overview;
     cards('overview-cards', [
-      ['Inference requests', num(o.requests), `${num(o.successful_requests)} successful · ${num(o.running_requests)} running`],
+      ['Requests', num(o.requests), `${num(o.successful_requests)} successful${o.running_requests ? ' · ' + num(o.running_requests) + ' running' : ''}`],
       ['Local inference', percent(o.local_percentage), 'Share of successful requests'],
       ['Cloud inference', percent(o.cloud_percentage), 'Share of successful requests'],
-      ['Token-derived API charges', money(o.external_api_cost), `${num(o.cost_samples)} of ${num(o.requests)} requests have known costs`]
+      ['External API charges', money(o.external_api_cost), `${num(o.cost_samples)} of ${num(o.requests)} requests have known costs`]
     ]);
     cards('performance-cards', [
       ['Average latency', seconds(o.average_latency_ms), `${num(o.latency_samples)} measured attempts`],
@@ -83,16 +98,22 @@ async function loadUsage() {
     ]);
     $('coverage').textContent = 'Latency includes model discovery, context preparation, and generation. First-token time is measured when nonempty response content arrives. Unknown measurements display —. Rates use all admitted attempts, including running ones.';
     const budget = data.cloud_budget;
-    document.getElementById('cloud-budget').textContent =
-      `Today’s cloud budget · ${money(budget.reserved_or_charged)} of ${money(budget.limit)} used or reserved · ${money(budget.unresolved_estimate)} estimated for requests with unknown charges.`;
+    $('cloud-budget').hidden = !(budget.limit || budget.reserved_or_charged);
+    $('cloud-budget').textContent = `Today’s cloud budget · ${money(budget.reserved_or_charged)} of ${money(budget.limit)} used or reserved${budget.unresolved_estimate ? ' · ' + money(budget.unresolved_estimate) + ' estimated' : ''}`;
     chart('requests-chart', data.trends, 'Requests'); chart('tokens-chart', data.trends, 'Tokens'); chart('cost-chart', data.trends, 'API costs');
     $('model-rows').replaceChildren(...data.by_model.map(m => {
       const row = document.createElement('tr');
       [m.model,num(m.requests),num(m.successful_requests),seconds(m.average_latency_ms),seconds(m.median_latency_ms),seconds(m.p95_latency_ms),num(m.average_tokens_per_second),`${num(m.input_tokens)} / ${num(m.output_tokens)}`,money(m.external_api_cost),`${percent(m.failure_rate)} / ${percent(m.cancellation_rate)}`].forEach(value => {const cell = document.createElement('td'); cell.textContent = value; row.append(cell);});
       return row;
     }));
-    $('usage-status').textContent = o.requests ? 'Showing persisted inference telemetry. Refresh to include new activity.' : 'No inference attempts in this view. Start a chat or choose another filter.';
-  } catch (e) { if (version === sequence) $('usage-status').textContent = e.message; }
+    $('usage-status').dataset.state = o.requests ? 'ready' : 'empty';
+    $('usage-status').textContent = o.requests ? 'Showing recorded inference activity.' : 'No inference attempts in this view. Start a chat or choose another filter.';
+  } catch (e) {
+    if (version === sequence) {
+      $('usage-status').dataset.state = 'error';
+      $('usage-status').textContent = e.message;
+    }
+  }
 }
 $('period').onchange = loadUsage; $('filter-model').onchange = loadUsage; $('refresh-usage').onclick = loadUsage;
 loadUsage();

@@ -28,11 +28,15 @@ module.exports = async function(browser, base) {
     assert.equal(await page.locator('.assistant .message-content').innerText(), 'The approved budget is USD 18400 [1, 2].');
     assert.deepEqual(await page.locator('.assistant .message-content a').evaluateAll(links => links.map(link=>link.href)),
       ['https://example.com/news','https://example.net/releases']);
-    assert.match(await page.locator('.assistant .metrics').innerText(), /Local/);
+    assert.match(await page.locator('#routing-mode').innerText(), /answered locally/);
     assert.equal(await page.locator('.handoff-button').count(),0);
-    await page.locator('.web-sources summary').click();
+    const sources = page.locator('.assistant .web-sources');
+    assert.equal(await sources.evaluate(element => element.open), false);
+    await sources.locator('summary').focus();
+    await page.keyboard.press('Enter');
     assert.equal(await page.locator('.web-sources a').count(),2);
     assert.equal(await page.locator('.web-sources a').first().getAttribute('href'),'https://example.com/news');
+    assert.match(await sources.locator('a').first().innerText(), /1\s+CedarMoon official news\s+example.com/);
     const cid = await page.evaluate(() => current);
     await page.screenshot({path:'test-results/web-chat-desktop.png',fullPage:true});
     await page.setViewportSize({width:390,height:844});
@@ -46,8 +50,8 @@ module.exports = async function(browser, base) {
     await page.locator('.web-sources summary').click();
     assert.equal(await page.locator('.web-sources a').count(),2);
     await start('__web_slow__');
-    await page.getByText('Searching the web…', {exact:true}).waitFor();
-    await page.locator('.assistant').waitFor();
+    await page.locator('#thinking-label', {hasText:'Searching the web…'}).waitFor();
+    await page.locator('.assistant').waitFor({state:'attached'});
     await page.getByRole('button',{name:'Stop',exact:true}).click(); await idle();
     const stoppedId = await page.evaluate(() => current);
     const stopped = await (await fetch(`${base}/api/conversations/${stoppedId}`)).json();

@@ -7,3 +7,6 @@ data/
 node_modules/
 test-results/
 /.env
+
+/dist/browser/
+/dist/native/

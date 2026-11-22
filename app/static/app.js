@@ -8,9 +8,11 @@ let webEnabled = false;
 let modelsLoading = false;
 const pdfMode = () => Boolean(activeDocument || pendingDocument);
 const routingLabels = {always_local: 'Always local', manual_handoff: 'Manual handoff',
-  automatic_handoff: 'Automatic handoff', always_frontier: 'Always frontier · sends to OpenAI'};
+  automatic_handoff: 'Cloud help enabled', always_frontier: 'Sends to OpenAI'};
+let replyDetails = readReplyDetails();
 async function api(path, options = {}) {
-  const response = await fetch(path, { ...options, headers: {'Content-Type': 'application/json', ...options.headers} });
+  const request = window.localfirstBrowser?.request || fetch;
+  const response = await request(path, { ...options, headers: {'Content-Type': 'application/json', ...options.headers} });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     const error = new Error(typeof data.detail === 'string' ? data.detail : `Request failed (${response.status}).`);
@@ -33,6 +35,7 @@ function controls() {
   $('web-search-note').hidden = !webEnabled;
   $('search-web').title = pdfMode() ? 'PDF conversations stay offline' : 'Search the web with this message';
   $('routing-mode').textContent = pdfMode() ? 'PDF · stays on this computer' : webEnabled ? 'Web search · answered locally' : routingLabels[routingMode];
+  $('routing-mode').hidden = !pdfMode() && !webEnabled && !['automatic_handoff', 'always_frontier'].includes(routingMode);
   document.querySelectorAll('.handoff-button').forEach(b => { b.disabled = busy; b.hidden = pdfMode(); });
   document.querySelectorAll('#conversations button').forEach(b => b.disabled = busy);
   document.querySelectorAll('.retry-reply select, .retry-reply button').forEach(el => el.disabled = busy || !online);
@@ -109,7 +112,6 @@ async function refreshModels() {
       $('model').replaceChildren(new Option(settings.frontier_model || 'OpenAI model not configured', settings.frontier_model || ''));
       online = settings.provider_ready && settings.daily_limit_cents > 0;
       $('connection').textContent = online ? 'OpenAI configured' : 'OpenAI setup required';
-      $('connection-dot').classList.toggle('offline', !online);
       notice(online ? '' : 'Configure OpenAI and a positive limit or change modes in Settings.');
       controls();
       return;
@@ -122,98 +124,176 @@ async function refreshModels() {
     if (data.models.includes(previous)) $('model').value = previous;
     else if (data.models.includes(data.default)) $('model').value = data.default;
     if (!online) { const option = document.createElement('option'); option.textContent = 'No installed models'; $('model').append(option); }
-    $('connection').textContent = online ? 'Ollama connected' : 'No models installed';
-    $('connection-dot').classList.toggle('offline', !online);
+    const localStatus = window.localfirstBrowser?.provider === 'llama.cpp' ? 'llama.cpp ready' : 'Model ready on device';
+    $('connection').textContent = online ? (window.localfirstBrowser ? localStatus : 'Ollama connected') : 'No models installed';
     notice(online ? '' : 'Ollama is running, but no models are installed. Install a model yourself, then refresh.');
   } catch (error) {
-    online = false; $('connection').textContent = 'Ollama unavailable';
-    $('connection-dot').classList.add('offline'); notice(error.message);
-    $('model').replaceChildren(new Option('Ollama unavailable', ''));
+    const unavailable = window.localfirstBrowser ? 'Local model unavailable' : 'Ollama unavailable';
+    online = false; $('connection').textContent = unavailable;
+    notice(error.message);
+    $('model').replaceChildren(new Option(unavailable, ''));
   } finally { modelsLoading = false; controls(); }
   document.querySelectorAll('.retry-reply select').forEach(select => syncRetryModels(select, select.value || select.dataset.preferred));
   controls();
 }
 async function refreshList() {
   const list = await (await api('/api/conversations')).json();
+  if (!window.localfirstBrowser) $('settings-link').href = '/settings?v=5' + (current ? '&conversation=' + encodeURIComponent(current) : '');
   $('conversations').replaceChildren();
-  if (!list.length) { const p = document.createElement('p'); p.className = 'empty-list'; p.textContent = 'A fresh start. Your conversations will appear here.'; $('conversations').append(p); }
   list.forEach(c => {
     const button = document.createElement('button'); button.textContent = c.title;
     button.title = c.title; button.classList.toggle('active', c.id === current); button.disabled = busy;
+    if (c.id === current) button.setAttribute('aria-current', 'true');
     button.onclick = () => openConversation(c.id).catch(e => notice(e.message));
     $('conversations').append(button);
   });
 }
 const seconds = value => value == null ? '—' : `${(value / 1000).toFixed(2)}s`;
 const number = value => value == null ? '—' : value.toLocaleString(undefined, {maximumFractionDigits:1});
-function metricsBar(element, record) {
+function replyButton(label, icon) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'icon-button';
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + icon + '</svg>';
+  return button;
+}
+const copyIcon = '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>';
+const thumbIcon = '<path d="M7.5 10.5h-3v9h3zm0 8.5h10a2 2 0 0 0 2-1.7l1-5.5a2 2 0 0 0-2-2.3h-4l.6-3.4A2 2 0 0 0 13 4l-5.5 6.5"/>';
+function renderReplyActions(element, record) {
+  const detailsOpen = element.querySelector('details')?.open || false;
   element.replaceChildren();
+  element.hidden = record.status !== 'complete';
+  if (element.hidden) return;
+
+  const copy = replyButton('Copy reply', copyIcon);
+  copy.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(record.content);
+      copy.classList.add('is-copied');
+      copy.title = 'Copied';
+      $('chat-status').textContent = 'Reply copied.';
+      setTimeout(() => { copy.classList.remove('is-copied'); copy.title = 'Copy reply'; }, 1400);
+    } catch {
+      notice('Could not copy the reply. You can select the text and copy it.');
+    }
+  };
+  element.append(copy);
   const t = record.telemetry;
-  if (!t) {
-    element.textContent = record.status === 'streaming' ? `${record.model || 'Local model'} · Generating…` : `${record.model || 'Local model'} · ${seconds(record.latency_ms)} · Detailed telemetry unavailable`;
-    return;
-  }
-  const details = document.createElement('details');
-  const summary = document.createElement('summary');
-  const total = t.input_tokens != null && t.output_tokens != null ? t.input_tokens + t.output_tokens : null;
-  const cost = t.external_api_cost == null ? 'Cost unavailable' : `$${t.external_api_cost.toFixed(4)} API`;
-  summary.textContent = `${t.model} · ${t.execution_location === 'local' ? 'Local' : 'Cloud'} · ${seconds(t.latency_ms)} · ${number(total)} tokens · ${cost} · ${t.status}`;
-  const more = document.createElement('div');
-  more.textContent = `Input: ${number(t.input_tokens)} · Output: ${number(t.output_tokens)} · Generation: ${number(t.tokens_per_second)} tok/s · First token: ${seconds(t.ttft_ms)} · Provider: ${t.provider}`;
-  if (record.context_messages != null) more.textContent += ` · Messages sent: ${record.context_messages} · Earlier messages omitted: ${record.omitted_messages}`;
-  details.append(summary, more); element.append(details);
-  if (t.status === 'success') {
-    const feedback = document.createElement('div'); feedback.className = 'feedback';
-    const label = document.createElement('span'); label.textContent = 'Was this useful?'; feedback.append(label);
-    [[1,'👍','Helpful'],[-1,'👎','Not helpful']].forEach(([value, icon, title]) => {
-      const button = document.createElement('button'); button.textContent = icon;
-      button.title = title; button.setAttribute('aria-label', title); button.setAttribute('aria-pressed', String(t.feedback === value));
+  if (t?.status === 'success') {
+    const votes = [
+      [1, replyButton('Helpful', thumbIcon)],
+      [-1, replyButton('Not helpful', '<g transform="rotate(180 12 12)">' + thumbIcon + '</g>')],
+    ];
+    const updateVotes = () => votes.forEach(([value, button]) => button.setAttribute('aria-pressed', String(t.feedback === value)));
+    for (const [value, button] of votes) {
       button.onclick = async () => {
-        button.disabled = true;
+        votes.forEach(([, control]) => { control.disabled = true; });
         try {
           const next = t.feedback === value ? null : value;
           await api(`/api/inference/${t.request_id}/feedback`, {method:'PUT', body:JSON.stringify({value:next})});
-          t.feedback = next; metricsBar(element, record);
-        } catch (e) { notice(e.message); button.disabled = false; }
+          t.feedback = next;
+          updateVotes();
+        } catch (error) { notice(error.message); }
+        finally { votes.forEach(([, control]) => { control.disabled = false; }); }
       };
-      feedback.append(button);
-    });
-    element.append(feedback);
+      element.append(button);
+    }
+    updateVotes();
   }
+
+  if (!Object.values(replyDetails).some(Boolean)) return;
+  const details = document.createElement('details');
+  details.className = 'metrics';
+  details.open = detailsOpen;
+  const summary = document.createElement('summary');
+  summary.textContent = 'Details';
+  const entries = document.createElement('dl');
+  entries.className = 'reply-detail-list';
+  function entry(label, text) {
+    const row = document.createElement('div');
+    const term = document.createElement('dt');
+    const value = document.createElement('dd');
+    term.textContent = label;
+    value.textContent = text;
+    row.append(term, value);
+    entries.append(row);
+  }
+  if (replyDetails.model) {
+    entry('Model', t?.model || record.model || '—');
+    const labels = {openai: 'OpenAI · Cloud', browser: 'Browser · On device', 'llama.cpp': 'llama.cpp · Local'};
+    entry('Provider', labels[t?.provider || record.provider] || 'Ollama · Local');
+  }
+  if (replyDetails.timing) {
+    entry('Response time', seconds(t?.latency_ms ?? record.latency_ms));
+    entry('First token', seconds(t?.ttft_ms));
+    entry('Generation speed', t?.tokens_per_second == null ? '—' : number(t.tokens_per_second) + ' tok/s');
+  }
+  if (replyDetails.tokens) {
+    entry('Input tokens', number(t?.input_tokens ?? record.prompt_tokens));
+    entry('Output tokens', number(t?.output_tokens ?? record.output_tokens));
+  }
+  details.append(summary, entries);
+  element.append(details);
 }
 function addMessage(m) {
   $('welcome').hidden = true;
   const article = document.createElement('article'); article.className = `message ${m.role}`;
-  const heading = document.createElement('div'); heading.className = 'message-heading';
-  heading.textContent = m.role === 'user' ? 'YOU' : m.retry_of ? '↗ LOCALFIRST · RETRY' : '↗ LOCALFIRST';
-  const content = document.createElement('div'); content.className = 'message-content'; content.textContent = m.content;
-  const metrics = document.createElement('div'); metrics.className = 'metrics';
+  article.setAttribute('aria-label', m.role === 'user' ? 'You' : m.retry_of ? 'LocalFirst retry' : 'LocalFirst');
+  const cloudLabel = document.createElement('div'); cloudLabel.className = 'cloud-reply';
+  cloudLabel.textContent = 'OpenAI'; cloudLabel.hidden = true;
+  const content = document.createElement('div'); content.className = 'message-content';
+  const actions = document.createElement('div'); actions.className = 'reply-actions'; actions.hidden = true;
   const error = document.createElement('div'); error.className = 'message-error';
   const source = document.createElement('div'); source.className = 'document-coverage'; source.hidden = true;
   const webSources = document.createElement('details'); webSources.className = 'web-sources'; webSources.hidden = true;
-  article.append(heading, content, source, webSources, metrics, error); $('messages').append(article);
+  if (m.role === 'assistant') article.append(cloudLabel);
+  article.append(content, source, webSources, error);
+  if (m.role === 'assistant') article.append(actions);
+  $('messages').append(article);
+  const reveal = m.status === 'streaming' ? createReplyReveal(content) : null;
   let state = {}, entered = false;
+  actions.addEventListener('replydetailschange', () => renderReplyActions(actions, state));
   function update(record) {
     const previous = state;
     state = {...state, ...record};
     if (state.web_context && state.web_context !== previous.web_context) {
       const search = state.web_context;
-      webSources.hidden = false;
       const summary = document.createElement('summary');
-      summary.textContent = search.sources.length ? `Sources · ${search.sources.length}` : 'Web search';
-      const note = document.createElement('p');
-      note.textContent = `${search.provider} · “${search.query}” · Search excerpts${search.retrieved_at ? ' · Retrieved ' + new Date(search.retrieved_at).toLocaleString() : ''}`;
+      summary.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M4 7h.01M4 12h.01M4 17h.01"/></svg>';
+      const label = document.createElement('span');
+      summary.append(label);
       const list = document.createElement('ol');
       for (const source of search.sources) {
         let url;
         try { url = new URL(source.url); } catch { continue; }
         if (!['http:', 'https:'].includes(url.protocol)) continue;
         const item = document.createElement('li'), link = document.createElement('a');
-        link.textContent = source.title; link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
-        const domain = document.createElement('span'); domain.textContent = url.hostname.replace(/^www\./, '');
-        item.append(link, domain); list.append(item);
+        link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        const number = document.createElement('span');
+        number.className = 'source-number'; number.textContent = source.number;
+        const description = document.createElement('span');
+        description.className = 'source-description';
+        const title = document.createElement('strong');
+        title.textContent = source.title || url.hostname;
+        const domain = document.createElement('small');
+        domain.textContent = url.hostname.replace(/^www\./, '');
+        description.append(title, domain);
+        link.append(number, description);
+        item.append(link); list.append(item);
       }
-      webSources.replaceChildren(summary, note, list);
+      const count = list.childElementCount;
+      webSources.hidden = !count && !search.retrieved_at;
+      label.textContent = count ? `Sources · ${count}` : 'Web search';
+      const panel = document.createElement('div');
+      panel.className = 'source-panel';
+      const note = document.createElement('p');
+      note.textContent = count ? `Retrieved via ${search.provider}${search.retrieved_at ? ' · ' + new Date(search.retrieved_at).toLocaleString() : ''}` : 'No sources found.';
+      note.title = search.query;
+      if (count) panel.append(list);
+      panel.append(note);
+      webSources.replaceChildren(summary, panel);
     }
     if (state.document || state.document_context) {
       source.hidden = false;
@@ -224,18 +304,26 @@ function addMessage(m) {
     }
     if (state.content != null && state.content !== previous.content) {
       if (m.role === 'assistant') {
+        const streaming = reveal && state.status === 'streaming' && state.content;
+        const before = streaming ? content.textContent : '';
         renderMarkdown(content, state.content, state.web_context?.sources || []);
-        if (m.status === 'streaming' && state.content && !entered) {
-          entered = true; article.classList.add('response-enter');
+        if (streaming) {
+          if (!entered && !CSS.highlights) article.classList.add('response-enter');
+          entered = true;
+          reveal.fadeAppended(before);
         }
       } else content.textContent = state.content;
     }
     if (m.role === 'assistant') {
-      if (state.telemetry !== previous.telemetry || state.status !== previous.status || state.model !== previous.model || state.context_messages !== previous.context_messages) metricsBar(metrics, state);
-      const errorText = state.error || (state.status === 'stopped' ? 'Stopped — incomplete response.' : state.status === 'streaming' ? 'Generating…' : state.status === 'error' ? 'Response failed.' : '');
+      if (state.status !== 'streaming') {
+        reveal?.clear();
+        article.classList.remove('response-enter');
+      }
+      if (state.telemetry !== previous.telemetry || state.status !== previous.status) renderReplyActions(actions, state);
+      const errorText = state.error || (state.status === 'stopped' ? 'Stopped — incomplete response.' : state.status === 'error' ? 'Response failed.' : '');
       if (error.textContent !== errorText) error.textContent = errorText;
       const provider = state.telemetry?.provider || state.provider || 'ollama';
-      heading.textContent = `${provider === 'openai' ? 'OpenAI' : 'Ollama'} · ${state.model || 'Model'}${state.retry_of ? ' · RETRY' : ''}`;
+      cloudLabel.hidden = provider !== 'openai' || !state.content;
       if (state.handoff_brief && !article.querySelector('.sent-brief')) {
         const details = document.createElement('details'); details.className = 'sent-brief';
         const summary = document.createElement('summary'); summary.textContent = 'Sent to OpenAI';
@@ -272,9 +360,13 @@ function addMessage(m) {
   update(m); return {content, update};
 }
 let followOutput = true;
-$('thread').addEventListener('scroll', () => {
+function updateJumpButton() {
   const thread = $('thread');
-  followOutput = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 64;
+  $('jump-latest').hidden = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 64;
+}
+$('thread').addEventListener('scroll', () => {
+  updateJumpButton();
+  followOutput = $('jump-latest').hidden;
 }, {passive:true});
 function selectingThreadText() {
   const selection = window.getSelection();
@@ -283,6 +375,26 @@ function selectingThreadText() {
 function scrollDown(force = false) {
   if (force) followOutput = true;
   if (force || (followOutput && !selectingThreadText())) $('thread').scrollTop = $('thread').scrollHeight;
+  updateJumpButton();
+}
+$('jump-latest').onclick = () => { scrollDown(true); $('thread').focus({preventScroll:true}); };
+
+const drawer = matchMedia('(max-width: 700px)');
+function setSidebar(open, restoreFocus = false) {
+  document.body.classList.toggle('sidebar-open', open);
+  $('menu').setAttribute('aria-expanded', String(open));
+  $('sidebar-backdrop').hidden = !open;
+  document.querySelector('main').inert = open;
+  if (open) $('close-sidebar').focus();
+  else {
+    $('workspace').open = false;
+    if (restoreFocus && drawer.matches) $('menu').focus();
+  }
+}
+function showThinking(label = '') {
+  $('thinking').hidden = !label;
+  if (label) $('thinking-label').textContent = label;
+  $('chat-status').textContent = label;
 }
 async function openConversation(id) {
   if (busy) return;
@@ -293,7 +405,7 @@ async function openConversation(id) {
   webEnabled = false;
   pendingDocument = null; activeDocument = c.document || null; showDocument(); await refreshModels();
   $('conversation-title').textContent = c.title; c.messages.forEach(addMessage);
-  document.body.classList.remove('sidebar-open'); $('menu').setAttribute('aria-expanded', 'false');
+  setSidebar(false, document.body.classList.contains('sidebar-open'));
   await refreshList();
   if (request === navigation) { scrollDown(true); if (online) notice(); }
 }
@@ -304,7 +416,7 @@ function newChat() {
   webEnabled = false;
   pendingDocument = null; activeDocument = null; showDocument(); refreshModels();
   $('conversation-title').textContent = 'New conversation'; notice();
-  document.body.classList.remove('sidebar-open'); $('menu').setAttribute('aria-expanded', 'false');
+  setSidebar(false); scrollDown(true);
   refreshList().catch(e => notice(e.message)); $('prompt').focus();
 }
 $('composer').onsubmit = event => {
@@ -393,6 +505,7 @@ async function generate({content, retryOf, selectedModel, handoffOf, handoff, ha
   if (busy || modelsLoading || (!online && !handoffOf)) return;
   navigation++;
   busy = true; controller = new AbortController(); notice();
+  $('chat-status').textContent = 'Thinking…';
   let message = null, streaming = null, accumulated = '', finished = false, cancelled = false;
   const attached = !retryOf && !handoffOf ? pendingDocument : null;
   stopActiveStream = () => {
@@ -404,9 +517,6 @@ async function generate({content, retryOf, selectedModel, handoffOf, handoff, ha
   controls();
   try {
     if (!current) current = (await (await api('/api/conversations', {method: 'POST', signal: controller.signal})).json()).id;
-    $('generation-status').textContent = handoffOf || (routingMode === 'always_frontier' && !pdfMode() && !webEnabled) ? 'Generating with OpenAI…'
-      : webEnabled && !retryOf ? 'Searching the web…'
-      : retryOf ? 'Retrying on your Mac…' : 'Generating on your Mac…';
     const endpoint = handoffOf ? `messages/${handoffOf}/handoff` : retryOf ? `messages/${retryOf}/retry` : 'chat';
     const response = await api(`/api/conversations/${current}/${endpoint}`, {method:'POST', signal:controller.signal,
       body:JSON.stringify(handoff || {content, model:selectedModel, expected_mode:routingMode, document_id:attached?.id,
@@ -417,10 +527,7 @@ async function generate({content, retryOf, selectedModel, handoffOf, handoff, ha
       const packet = JSON.parse(line);
       if (packet.type === 'start') {
         finished = false; accumulated = '';
-        if (packet.handoff_of) {
-          $('generation-status').textContent = 'Generating with OpenAI…';
-          if (handoffButton) handoffButton.remove();
-        }
+        if (packet.handoff_of && handoffButton) handoffButton.remove();
         if (!retryOf && !packet.handoff_of) {
           addMessage({role:'user', content, document:attached});
           if (attached) { activeDocument = attached; pendingDocument = null; showDocument(); }
@@ -433,21 +540,32 @@ async function generate({content, retryOf, selectedModel, handoffOf, handoff, ha
           route_reason:packet.route_reason, handoff_brief:packet.handoff_brief, document_context:packet.document_context,
           web_context:packet.web_context});
         message.id = packet.message_id;
-        streaming = createStreamBuffer(raw => { message.update({content:raw}); scrollDown(); });
-        scrollDown(true);
+        showThinking('Thinking…');
+        streaming = createStreamBuffer(raw => {
+          showThinking();
+          message.update({content:raw});
+          scrollDown();
+        }, 150);
+        scrollDown(!packet.handoff_of);
       }
       if (packet.type === 'start' && packet.omitted_messages) notice(`${packet.omitted_messages} older messages are saved but omitted from this request.`);
-      if (packet.type === 'preparing') $('generation-status').textContent = 'Assessing the reply on your Mac…';
+      if (packet.type === 'preparing') { showThinking('Thinking…'); scrollDown(); }
       if (packet.type === 'handoff_status') notice(packet.message);
-      if (packet.type === 'web_status') $('generation-status').textContent = packet.message;
+      if (packet.type === 'web_status') showThinking(packet.message);
       if (packet.type === 'web_sources') {
         message.update(packet);
-        $('generation-status').textContent = 'Answering from search results on your Mac…';
+        showThinking('Thinking…');
         if (packet.omitted_messages) notice(`${packet.omitted_messages} older messages are saved but omitted from this request.`);
       }
       if (packet.type === 'delta') { accumulated += packet.content; streaming.set(accumulated); }
       if (packet.type === 'error') throw new Error(packet.message);
-      if (packet.type === 'done') { streaming.close(); finished = true; message.update({...packet, status:'complete'}); scrollDown(); }
+      if (packet.type === 'done') {
+        streaming.close();
+        showThinking();
+        finished = true;
+        message.update({...packet, status:'complete'});
+        scrollDown();
+      }
     }
     while (true) {
       const {done, value} = await reader.read();
@@ -462,9 +580,9 @@ async function generate({content, retryOf, selectedModel, handoffOf, handoff, ha
     const stopped = error.name === 'AbortError';
     const text = stopped ? 'Stopped — incomplete response.' : error.message;
     if (message && !finished) message.update({status:stopped?'stopped':'error', error:text});
-    if (!stopped) notice(text);
+    if (!stopped && (!message || finished)) notice(text);
   } finally {
-    streaming?.close(); stopActiveStream = null; controls();
+    streaming?.close(); showThinking(); stopActiveStream = null; controls();
     try {
       if (current) {
         // The server may still be saving a stopped attempt when the browser aborts.
@@ -486,18 +604,43 @@ async function generate({content, retryOf, selectedModel, handoffOf, handoff, ha
     } catch (error) { notice(error.message); }
     finally {
       busy = false; controller = null; $('generation-status').textContent = ''; controls();
-      if (!selectingThreadText() && !retryOf) $('prompt').focus();
+      if (!selectingThreadText() && !retryOf && [document.body, $('stop')].includes(document.activeElement)) $('prompt').focus();
     }
   }
 }
-$('stop').onclick = () => { if (controller) { $('generation-status').textContent = 'Stopping…'; stopActiveStream(); } };
+$('stop').onclick = () => { if (stopActiveStream) stopActiveStream(); };
 $('new-chat').onclick = newChat;
-$('refresh-models').onclick = refreshModels;
-$('menu').onclick = () => { const open = document.body.classList.toggle('sidebar-open'); $('menu').setAttribute('aria-expanded', String(open)); };
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { document.body.classList.remove('sidebar-open'); $('menu').setAttribute('aria-expanded', 'false'); } });
+$('refresh-models').onclick = window.localfirstBrowser?.manageModels || refreshModels;
+$('menu').onclick = () => setSidebar(true);
+$('close-sidebar').onclick = $('sidebar-backdrop').onclick = () => setSidebar(false, true);
+drawer.addEventListener('change', event => { if (!event.matches) setSidebar(false); });
+document.addEventListener('click', event => {
+  if (!$('workspace').contains(event.target)) $('workspace').open = false;
+});
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || $('handoff-dialog').open) return;
+  if ($('workspace').open) {
+    $('workspace').open = false;
+    $('workspace').querySelector('summary').focus();
+  } else if (drawer.matches && document.body.classList.contains('sidebar-open')) {
+    setSidebar(false, true);
+  }
+});
+function refreshReplyDetails() {
+  const next = readReplyDetails();
+  if (replyDetailFields.every(key => Boolean(next[key]) === Boolean(replyDetails[key]))) return;
+  replyDetails = next;
+  document.querySelectorAll('.reply-actions').forEach(actions => actions.dispatchEvent(new Event('replydetailschange')));
+  updateJumpButton();
+}
+window.addEventListener('storage', event => {
+  if (event.key === replyDetailsKey || event.key === null) refreshReplyDetails();
+});
+window.addEventListener('pageshow', refreshReplyDetails);
+window.addEventListener('localfirst-display-change', refreshReplyDetails);
 $('prompt').addEventListener('input', () => { $('prompt').style.height = 'auto'; $('prompt').style.height = Math.min($('prompt').scrollHeight, 160) + 'px'; });
 $('prompt').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('composer').requestSubmit(); } });
 Promise.all([refreshModels(), refreshList()]).then(() => {
-  const cid = new URLSearchParams(location.search).get('conversation');
+  const cid = new URLSearchParams(location.search).get('conversation') || window.localfirstBrowser?.initialConversation();
   if (cid) return openConversation(cid);
 }).catch(e => notice(e.message));

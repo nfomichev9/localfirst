@@ -17,7 +17,8 @@ module.exports = async function labChecks(browser, base) {
     await page.screenshot({path:'test-results/lab-report.png'});
     await page.goto(base+'/?conversation='+conversation.id);
     await page.locator('.message.assistant').waitFor();
-    assert.equal(await page.locator('a[href^="/lab"]').count(),0);
+    assert.equal(await page.locator('#messages a[href^="/lab"]').count(),0);
+    assert.equal(await page.locator('#workspace a[href="/lab"]').count(),1);
     const saved = await (await fetch(base+`/api/conversations/${conversation.id}`)).json();
     await page.goto(base+`/lab?message=${saved.messages.at(-1).id}`);
     await page.waitForFunction(() => document.querySelector('#save-task').textContent.includes('Create experiment'));

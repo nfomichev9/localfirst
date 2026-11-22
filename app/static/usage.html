@@ -1,17 +1,76 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><title>Usage &amp; analytics — LocalFirst</title><link rel="stylesheet" href="/static/styles.css"><script src="/static/usage.js" defer></script></head>
-<body class="analytics-page"><aside><a class="brand" href="/">LocalFirst <small>01</small></a><a class="usage-link" href="/">← Back to chat</a><div class="sidebar-bottom"><span class="green-dot"></span><div>Private by design<small>Analytics stay on this machine.</small></div></div></aside>
-<main><header><span>Workspace / Usage &amp; analytics</span><a class="usage-link" href="/">Back to chat ↗</a></header><section class="analytics-content">
-<div class="analytics-heading"><div><div class="eyebrow">YOUR INFERENCE, IN PERSPECTIVE</div><h1>Usage &amp; analytics<span>.</span></h1><p>Model performance and API spending from recorded requests.</p></div><div class="filters"><label>Period<select id="period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="0">All time</option></select></label><label>Model<select id="filter-model"><option value="">All models</option></select></label><button id="refresh-usage">↻ Refresh</button></div></div>
-<div id="usage-status" role="status"></div><div id="overview-cards" class="stat-grid"></div>
-    <p id="cloud-budget"></p>
-<p class="analytics-note">Local share uses successful requests. API spending excludes device electricity and hardware. Cloud-only estimates and estimated savings are unavailable until a documented, versioned baseline exists; no measured savings are claimed.</p>
-<div class="section-heading"><h2>Performance</h2><span>Across finished attempts in this view</span></div><div id="performance-cards" class="stat-grid"></div>
-<p id="coverage" class="analytics-note"></p>
-<div class="section-heading"><h2>Activity over time</h2><span>Daily buckets · UTC · Hover or focus bars for values</span></div><div class="chart-grid">
-<section class="chart-panel"><h3>Requests · local &amp; cloud</h3><p>Local <span class="legend local">●</span> Cloud <span class="legend cloud">●</span></p><div id="requests-chart"></div></section>
-<section class="chart-panel"><h3>Tokens processed</h3><p>Input + output · known counts only</p><div id="tokens-chart"></div></section>
-<section class="chart-panel"><h3>External API costs</h3><p>Token-derived USD · known charges only</p><div id="cost-chart"></div></section></div>
-<div class="section-heading"><h2>Performance by model</h2><span>Generation speed uses provider generation duration</span></div><div class="model-table"><table><thead><tr><th>Model</th><th>Requests</th><th>Successes</th><th>Avg latency</th><th>Median</th><th>P95</th><th>Tok/s</th><th>Input / output</th><th>API cost</th><th>Failed / cancelled</th></tr></thead><tbody id="model-rows"></tbody></table></div>
-<p class="analytics-note">P95 requires at least 20 measured latencies and uses nearest rank. Token totals are sums of known provider counts, not estimates. Older conversations have no inference ledger and are excluded. Helpful / unhelpful feedback is a response quality signal, not a completed-task evaluation.</p>
-</section></main></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Usage &amp; analytics — LocalFirst</title>
+  <link rel="icon" href="/static/owl.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css?v=2">
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/workspace.css">
+  <link rel="stylesheet" href="/static/usage.css">
+  <script src="/static/usage.js?v=2" defer></script>
+</head>
+<body class="workspace-page analytics-page">
+  <main>
+    <header class="workspace-header">
+      <a class="brand" href="/" aria-label="LocalFirst home"><img src="/static/owl.svg" alt="" width="26" height="26"> LocalFirst</a>
+      <nav aria-label="Workspace">
+        <a href="/">Chat</a><a href="/usage" aria-current="page">Usage</a><a href="/lab">Lab</a>
+      </nav>
+    </header>
+    <div class="workspace-content analytics-content">
+      <div class="workspace-heading usage-heading">
+        <h1>Usage &amp; analytics</h1>
+        <div class="filters">
+          <label>Period
+            <select id="period">
+              <option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option>
+              <option value="90">Last 90 days</option><option value="0">All time</option>
+            </select>
+          </label>
+          <label>Model<select id="filter-model"><option value="">All models</option></select></label>
+          <button id="refresh-usage" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.5 9a7 7 0 1 0 .2 5.5M19 5v4.5h-4.5"/></svg> Refresh
+          </button>
+        </div>
+      </div>
+      <p id="usage-status" role="status"></p>
+      <section aria-label="Usage summary">
+        <div id="overview-cards" class="stat-grid"></div>
+        <p id="cloud-budget" class="analytics-note" hidden></p>
+      </section>
+      <section class="analytics-section" aria-labelledby="activity-heading">
+        <div class="analytics-section-heading"><h2 id="activity-heading">Activity</h2><p>Daily totals in UTC</p></div>
+        <div class="chart-grid">
+          <section class="chart-panel">
+            <h3>Requests</h3><p class="chart-legend"><span class="legend local">Local</span><span class="legend cloud">Cloud</span></p>
+            <div id="requests-chart"></div>
+          </section>
+          <section class="chart-panel"><h3>Tokens</h3><p>Input + output</p><div id="tokens-chart"></div></section>
+          <section class="chart-panel"><h3>API charges</h3><p>Known charges in USD</p><div id="cost-chart"></div></section>
+        </div>
+      </section>
+      <section class="analytics-section" aria-labelledby="performance-heading">
+        <div class="analytics-section-heading"><h2 id="performance-heading">Performance</h2></div>
+        <div id="performance-cards" class="stat-grid performance-grid"></div>
+      </section>
+      <section class="analytics-section" aria-labelledby="models-heading">
+        <div class="analytics-section-heading"><h2 id="models-heading">By model</h2></div>
+        <div class="model-table" tabindex="0" role="region" aria-label="Model performance table">
+          <table><thead><tr>
+            <th scope="col">Model</th><th scope="col">Requests</th><th scope="col">Successes</th><th scope="col">Avg latency</th><th scope="col">Median</th><th scope="col">P95</th><th scope="col">Tok/s</th><th scope="col">Input / output</th><th scope="col">API cost</th><th scope="col">Failed / cancelled</th>
+          </tr></thead><tbody id="model-rows"></tbody></table>
+        </div>
+      </section>
+      <details class="analytics-method">
+        <summary>How metrics are calculated</summary>
+        <p id="coverage"></p>
+        <p>Local and cloud shares use successful requests. Generation speed uses the provider’s generation duration. P95 uses nearest rank and needs at least 20 measured latencies. Token totals count known provider values. Conversations recorded before the inference ledger are excluded.</p>
+        <p>API charges exclude device electricity and hardware. Savings estimates require a documented cloud baseline. Reply feedback measures perceived helpfulness.</p>
+      </details>
+    </div>
+  </main>
+</body>
+</html>

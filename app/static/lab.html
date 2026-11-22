@@ -1,14 +1,33 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Evaluation Lab — LocalFirst</title><link rel="stylesheet" href="/static/styles.css"><link rel="stylesheet" href="/static/lab.css?v=2"><script src="/static/vendor/marked.min.js" defer></script><script src="/static/vendor/purify.min.js" defer></script><script src="/static/vendor/highlight.min.js" defer></script><script src="/static/markdown.js" defer></script><script src="/static/streaming.js" defer></script><script src="/static/lab.js?v=2" defer></script></head>
-<body class="lab-page">
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Evaluation Lab — LocalFirst</title>
+  <link rel="icon" href="/static/owl.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css?v=2">
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/workspace.css">
+  <link rel="stylesheet" href="/static/lab.css?v=3">
+  <script src="/static/vendor/marked.min.js" defer></script>
+  <script src="/static/vendor/purify.min.js" defer></script>
+  <script src="/static/vendor/highlight.min.js" defer></script>
+  <script src="/static/markdown.js" defer></script>
+  <script src="/static/streaming.js" defer></script>
+  <script src="/static/lab.js?v=2" defer></script>
+</head>
+<body class="workspace-page lab-page">
 <main>
-<header class="lab-header">
-  <a class="brand" href="/">LocalFirst</a>
-  <nav aria-label="Workspace"><a href="/">Chat</a><a href="/usage">Usage</a></nav>
-</header>
-<div class="lab-content">
-  <div class="lab-heading"><h1>Evaluation Lab</h1><button id="new-task">New experiment</button></div>
-  <div class="lab-board">
+  <header class="workspace-header">
+    <a class="brand" href="/" aria-label="LocalFirst home"><img src="/static/owl.svg" alt="" width="26" height="26"> LocalFirst</a>
+    <nav aria-label="Workspace">
+      <a href="/">Chat</a><a href="/usage">Usage</a><a href="/lab" aria-current="page">Lab</a>
+    </nav>
+  </header>
+  <div class="workspace-content lab-content">
+    <div class="workspace-heading lab-heading"><h1>Evaluation Lab</h1><button id="new-task">New experiment</button></div>
+    <div class="lab-board">
     <section class="chat-inbox" aria-labelledby="chat-list-title">
       <div class="lab-section-top"><h2 id="chat-list-title">Recent answers</h2><button id="refresh-chat-turns">Refresh</button></div>
       <div id="chat-turns"></div>
